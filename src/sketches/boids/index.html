@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Triangles — warmup simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --floor: #d9dde4;
+    --floor-line: #c6ccd6;
+    --panel: #f5f6f8;
+    --ink: #1f2430;
+    --ink-soft: #5b6375;
+    --dot: #1f2430;
+    --tape-yellow: #d9a21b;
+    --tape-pink: #d2457a;
+    --tape-cyan: #1f8f9c;
+    --rule: #cfd4dc;
+    --void: #c3c9d3;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --floor: #2b3140;
+      --floor-line: #343b4c;
+      --panel: #222733;
+      --ink: #eef0f4;
+      --ink-soft: #a3abbd;
+      --dot: #e9ecf2;
+      --tape-yellow: #f2c14e;
+      --tape-pink: #ee6f9c;
+      --tape-cyan: #52c0cc;
+      --rule: #394052;
+      --void: #1c202a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --floor: #2b3140;
+    --floor-line: #343b4c;
+    --panel: #222733;
+    --ink: #eef0f4;
+    --ink-soft: #a3abbd;
+    --dot: #e9ecf2;
+    --tape-yellow: #f2c14e;
+    --tape-pink: #ee6f9c;
+    --tape-cyan: #52c0cc;
+    --rule: #394052;
+    --void: #1c202a;
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--panel);
+    color: var(--ink);
+    font-family: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    grid-template-rows: 100%;
+  }
+  #stage { position: relative; min-width: 0; background: var(--floor); cursor: grab; min-height: 0; overflow: hidden; touch-action: none; }
+  #stage canvas { display: block; touch-action: none; }
+  #stage.dragging { cursor: grabbing; }
+  .zoom {
+    position: absolute; top: 12px; right: 12px; display: flex; gap: 6px;
+  }
+  .zoom button {
+    background: var(--panel); padding: 6px 12px; min-width: 38px; border-width: 1px;
+  }
+  .load-error {
+    position: absolute; inset: 0; margin: auto; height: fit-content; max-width: 32ch;
+    padding: 16px; text-align: center; color: var(--ink); font-size: 0.95rem; line-height: 1.4;
+  }
+  .hint {
+    position: absolute; left: 16px; bottom: 14px; margin: 0;
+    font-size: 0.875rem; color: var(--ink-soft); pointer-events: none;
+  }
+  aside {
+    padding: 24px 22px; overflow-y: auto;
+    border-left: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.1; margin: 0; letter-spacing: -0.01em; }
+  .lede { margin: 6px 0 0; font-size: 0.95rem; line-height: 1.45; color: var(--ink-soft); }
+  .control { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: baseline; }
+  .control label { font-weight: 500; font-size: 0.95rem; }
+  .control output { font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: 0.9rem; }
+  .control input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--tape-pink); }
+  .control small { grid-column: 1 / -1; color: var(--ink-soft); font-size: 0.8rem; line-height: 1.35; }
+  .toggles { display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem; }
+  .toggles label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .toggles input { accent-color: var(--tape-cyan); width: 16px; height: 16px; }
+  .mode { display: grid; gap: 6px; }
+  .mode > label { font-weight: 500; font-size: 0.95rem; }
+  .mode small { color: var(--ink-soft); font-size: 0.8rem; line-height: 1.35; }
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: ""; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px; margin-top: -6px;
+    border-right: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); transform: rotate(45deg);
+    pointer-events: none;
+  }
+  .mode select {
+    appearance: none; -webkit-appearance: none; width: 100%;
+    font: inherit; font-weight: 500; font-size: 0.95rem; color: var(--ink);
+    background: transparent; border: 1.5px solid var(--ink); border-radius: 999px;
+    padding: 9px 40px 9px 16px; cursor: pointer;
+  }
+  .mode select option { background: var(--panel); color: var(--ink); }
+  .mode select:focus-visible { outline: 2.5px solid var(--tape-cyan); outline-offset: 2px; }
+  .shape { border: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .shape legend { font-weight: 500; font-size: 0.95rem; padding: 0; margin-bottom: 6px; }
+  .segmented { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--ink); border-radius: 999px; overflow: hidden; }
+  .segmented.three { grid-template-columns: 1fr 1fr 1fr; }
+  .segmented.three label { display: flex; align-items: center; justify-content: center; font-size: 0.85rem; line-height: 1.15; }
+  .orbit-dir { display: grid; gap: 6px; margin-top: 4px; }
+  .orbit-dir[hidden] { display: none; }
+  .orbit-dir > span { font-weight: 500; font-size: 0.9rem; }
+  .orbit-radius { margin-top: 10px; }
+  .boids-opts { margin-top: 4px; display: grid; gap: 14px; }
+  .boids-opts[hidden] { display: none; }
+  .segmented input { position: absolute; opacity: 0; pointer-events: none; }
+  .segmented label { text-align: center; padding: 8px 6px; font-size: 0.9rem; font-weight: 500; cursor: pointer; }
+  .segmented input:checked + label { background: var(--ink); color: var(--panel); }
+  .segmented input:focus-visible + label { outline: 2.5px solid var(--tape-cyan); outline-offset: -3px; }
+  .shape small { color: var(--ink-soft); font-size: 0.8rem; line-height: 1.35; }
+  .settings { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .settings summary {
+    cursor: pointer; padding: 12px 0; font-weight: 500; font-size: 0.95rem;
+    list-style: none; display: flex; justify-content: space-between; align-items: center;
+  }
+  .settings summary::-webkit-details-marker { display: none; }
+  .settings summary::after { content: "+"; font-size: 1.2rem; color: var(--ink-soft); }
+  .settings[open] summary::after { content: "−"; }
+  .settings summary:focus-visible { outline: 2.5px solid var(--tape-cyan); outline-offset: 2px; }
+  .settings-body { display: flex; flex-direction: column; gap: 16px; padding-bottom: 16px; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.recording { border-color: var(--tape-pink); color: var(--tape-pink); }
+  .rec-status {
+    position: absolute; top: 12px; left: 12px; margin: 0;
+    background: var(--panel); color: var(--ink); border-radius: 999px;
+    padding: 6px 12px 6px 28px; font-size: 0.875rem; font-variant-numeric: tabular-nums;
+  }
+  .rec-status::before {
+    content: ""; position: absolute; left: 11px; top: 50%; width: 9px; height: 9px;
+    margin-top: -4.5px; border-radius: 50%; background: var(--tape-pink);
+  }
+  .buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 500; font-size: 0.95rem;
+    padding: 9px 14px; border-radius: 999px; cursor: pointer;
+    border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
+  }
+  button.primary { background: var(--ink); color: var(--panel); }
+  button:focus-visible, input:focus-visible { outline: 2.5px solid var(--tape-cyan); outline-offset: 2px; }
+  .legend { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--ink-soft); margin-top: auto; }
+  .legend span { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
+
+  /* Narrow, portrait frames: stage on top, controls scroll underneath. */
+  @media (max-width: 760px) and (max-aspect-ratio: 2/1) {
+    body { grid-template-columns: 100%; grid-template-rows: 58% 42%; }
+    aside { border-left: none; border-top: 1px solid var(--rule); padding: 16px 18px; gap: 14px; }
+    h1 { font-size: 1.35rem; }
+    .lede { display: none; }
+    .legend { display: none; }
+  }
+
+  /* Short frames (such as an embedded iframe): tighten the panel. */
+  @media (max-height: 560px) {
+    aside { padding: 16px 18px; gap: 14px; }
+    h1 { font-size: 1.35rem; }
+    .lede { font-size: 0.875rem; }
+    .legend { display: none; }
+  }
+  @media (max-height: 360px) {
+    .hint, .lede { display: none; }
+  }
+
+  /* Long, thin frames (about 2:1 and wider): the panel widens into two columns beside the stage. */
+  @media (min-aspect-ratio: 2/1) and (min-width: 700px) {
+    body { grid-template-columns: 1fr minmax(420px, 44%); }
+    aside {
+      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto 1fr;
+      gap: 14px 22px; align-content: start; padding: 16px 20px;
+    }
+    aside > .head { grid-column: 1; grid-row: 1; }
+    aside > .mode { grid-column: 1; grid-row: 2 / span 3; align-content: start; }
+    aside > .buttons { grid-column: 2; grid-row: 1; align-self: start; }
+    aside > .toggles { grid-column: 2; grid-row: 2; }
+    aside > .settings { grid-column: 2; grid-row: 3; align-self: start; }
+    .legend { display: none; }
+    h1 { font-size: 1.35rem; }
+  }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="zoom">
+      <button id="zoomOut" aria-label="Zoom out">−</button>
+      <button id="zoomIn" aria-label="Zoom in">+</button>
+      <button id="zoomFit" aria-label="Fit the room to the screen">Fit</button>
+    </div>
+    <p class="rec-status" id="recStatus" hidden></p>
+    <p class="hint">Scroll or pinch to zoom. Drag to move around. Tap a camper to see who they're watching.</p>
+  </div>
+  <aside>
+    <div class="head">
+      <h1 id="modeTitle">Triangles</h1>
+      <p class="lede" id="modeLede">Every camper secretly picks two others and keeps moving to form a triangle with them.</p>
+    </div>
+
+    <div class="mode">
+      <label for="mode">Mode of play</label>
+      <div class="select-wrap">
+        <select id="mode">
+          <option value="equilateral" selected>Triangles: equilateral</option>
+          <option value="isosceles">Triangles: isosceles</option>
+          <option value="leader">Secret leader</option>
+          <option value="planet">Secret planet</option>
+          <option value="spooky">Secret spooky</option>
+          <option value="bomb">Bomb and shield</option>
+          <option value="fan">Secret admirer</option>
+          <option value="boids">Boids</option>
+        </select>
+      </div>
+      <div class="orbit-dir" id="orbitDir" role="radiogroup" aria-labelledby="orbitDirLabel" hidden>
+        <span id="orbitDirLabel">Direction of travel</span>
+        <div class="segmented three">
+          <input type="radio" name="orbit" id="orbitCcw" value="ccw" checked><label for="orbitCcw">Counter&shy;clockwise</label>
+          <input type="radio" name="orbit" id="orbitCw" value="cw"><label for="orbitCw">Clockwise</label>
+          <input type="radio" name="orbit" id="orbitRand" value="random"><label for="orbitRand">Random</label>
+        </div>
+        <div class="control orbit-radius">
+          <label for="orbitRadius">Orbit radius</label><output id="orbitRadiusOut"></output>
+          <input id="orbitRadius" type="range" min="20" max="300" step="5" value="70">
+        </div>
+      </div>
+      <div class="boids-opts" id="boidsOpts" hidden>
+        <div class="control">
+          <label for="neighbors">Neighbours considered</label><output id="neighborsOut"></output>
+          <input id="neighbors" type="range" min="1" max="12" step="1" value="2">
+          <small>How many of the nearest campers each one gathers toward and lines up with.</small>
+        </div>
+        <div class="control">
+          <label for="align">Alignment</label><output id="alignOut"></output>
+          <input id="align" type="range" min="0" max="1" step="0.05" value="0.5">
+          <small>How strongly each camper matches the direction their neighbours are walking. At 0 they only gather.</small>
+        </div>
+      </div>
+      <small id="modeHelp">Stand at the point that makes all three sides equal.</small>
+    </div>
+
+    <details class="settings">
+      <summary>Movement settings</summary>
+      <div class="settings-body">
+    <div class="control">
+      <label for="inertia">Inertia</label><output id="inertiaOut"></output>
+      <input id="inertia" type="range" min="0.2" max="10" step="0.1" value="6">
+      <small>How heavy each camper is. Heavier campers are slower to start and stop.</small>
+    </div>
+    <div class="control">
+      <label for="damping">Damping</label><output id="dampingOut"></output>
+      <input id="damping" type="range" min="0" max="0.3" step="0.005" value="0.25">
+      <small>Friction on the floor. Low values let campers overshoot and swirl.</small>
+    </div>
+    <div class="control">
+      <label for="pull">Pull</label><output id="pullOut"></output>
+      <input id="pull" type="range" min="0.002" max="0.08" step="0.001" value="0.03">
+      <small>How strongly each camper is drawn toward their triangle point.</small>
+    </div>
+    <div class="control">
+      <label for="maxSpeed">Top speed</label><output id="maxSpeedOut"></output>
+      <input id="maxSpeed" type="range" min="0.5" max="15" step="0.5" value="3">
+      <small>The fastest any camper can move, however strong the pull.</small>
+    </div>
+    <div class="control">
+      <label for="space">Personal space</label><output id="spaceOut"></output>
+      <input id="space" type="range" min="0" max="150" step="1" value="35">
+      <small>Campers gently push apart when closer than this. Set to 0 to turn it off.</small>
+    </div>
+    <div class="control">
+      <label for="count">Campers</label><output id="countOut"></output>
+      <input id="count" type="range" min="3" max="150" step="1" value="25">
+    </div>
+      </div>
+    </details>
+
+    <div class="toggles">
+      <label><input id="showTriangle" type="checkbox" checked> Show who the selected camper watches</label>
+      <label><input id="trails" type="checkbox"> Leave trails</label>
+      <label><input id="allLines" type="checkbox"> Show every connection</label>
+    </div>
+
+    <div class="buttons">
+      <button class="primary" id="repick">Pick new partners</button>
+      <button id="scatter">Scatter</button>
+      <button id="record" disabled title="Checking whether saving files is available here">Record 10s GIF</button>
+    </div>
+
+    <div class="legend">
+      <div><span style="background:var(--tape-pink)"></span>Selected camper</div>
+      <div><span style="background:var(--tape-cyan)"></span>The people they watch</div>
+      <div><span style="background:var(--tape-yellow)"></span>Where they're trying to stand</div>
+    </div>
+  </aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script>
+  if (!window.p5) document.write('<script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"><\/script>');
+</script>
+<script>
+/* gifenc 1.0.3 (MIT, Matt DesLauriers) */
+(function(){var exports={};
+var __defProp = Object.defineProperty;
+var __markAsModule = (target) => __defProp(target, "__esModule", {value: true});
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, {get: all[name], enumerable: true});
+};
+
+// src/index.js
+__markAsModule(exports);
+__export(exports, {
+  GIFEncoder: () => GIFEncoder,
+  applyPalette: () => applyPalette,
+  default: () => src_default,
+  nearestColor: () => nearestColor,
+  nearestColorIndex: () => nearestColorIndex,
+  nearestColorIndexWithDistance: () => nearestColorIndexWithDistance,
+  prequantize: () => prequantize,
+  quantize: () => quantize,
+  snapColorsToPalette: () => snapColorsToPalette
+});
+
+// src/constants.js
+var constants_default = {
+  signature: "GIF",
+  version: "89a",
+  trailer: 59,
+  extensionIntroducer: 33,
+  applicationExtensionLabel: 255,
+  graphicControlExtensionLabel: 249,
+  imageSeparator: 44,
+  signatureSize: 3,
+  versionSize: 3,
+  globalColorTableFlagMask: 128,
+  colorResolutionMask: 112,
+  sortFlagMask: 8,
+  globalColorTableSizeMask: 7,
+  applicationIdentifierSize: 8,
+  applicationAuthCodeSize: 3,
+  disposalMethodMask: 28,
+  userInputFlagMask: 2,
+  transparentColorFlagMask: 1,
+  localColorTableFlagMask: 128,
+  interlaceFlagMask: 64,
+  idSortFlagMask: 32,
+  localColorTableSizeMask: 7
+};
+
+// src/stream.js
+function createStream(initialCapacity = 256) {
+  let cursor = 0;
+  let contents = new Uint8Array(initialCapacity);
+  return {
+    get buffer() {
+      return contents.buffer;
+    },
+    reset() {
+      cursor = 0;
+    },
+    bytesView() {
+      return contents.subarray(0, cursor);
+    },
+    bytes() {
+      return contents.slice(0, cursor);
+    },
+    writeByte(byte) {
+      expand(cursor + 1);
+      contents[cursor] = byte;
+      cursor++;
+    },
+    writeBytes(data, offset = 0, byteLength = data.length) {
+      expand(cursor + byteLength);
+      for (let i = 0; i < byteLength; i++) {
+        contents[cursor++] = data[i + offset];
+      }
+    },
+    writeBytesView(data, offset = 0, byteLength = data.byteLength) {
+      expand(cursor + byteLength);
+      contents.set(data.subarray(offset, offset + byteLength), cursor);
+      cursor += byteLength;
+    }
+  };
+  function expand(newCapacity) {
+    var prevCapacity = contents.length;
+    if (prevCapacity >= newCapacity)
+      return;
+    var CAPACITY_DOUBLING_MAX = 1024 * 1024;
+    newCapacity = Math.max(newCapacity, prevCapacity * (prevCapacity < CAPACITY_DOUBLING_MAX ? 2 : 1.125) >>> 0);
+    if (prevCapacity != 0)
+      newCapacity = Math.max(newCapacity, 256);
+    const oldContents = contents;
+    contents = new Uint8Array(newCapacity);
+    if (cursor > 0)
+      contents.set(oldContents.subarray(0, cursor), 0);
+  }
+}
+
+// src/lzwEncode.js
+var BITS = 12;
+var DEFAULT_HSIZE = 5003;
+var MASKS = [
+  0,
+  1,
+  3,
+  7,
+  15,
+  31,
+  63,
+  127,
+  255,
+  511,
+  1023,
+  2047,
+  4095,
+  8191,
+  16383,
+  32767,
+  65535
+];
+function lzwEncode(width, height, pixels, colorDepth, outStream = createStream(512), accum = new Uint8Array(256), htab = new Int32Array(DEFAULT_HSIZE), codetab = new Int32Array(DEFAULT_HSIZE)) {
+  const hsize = htab.length;
+  const initCodeSize = Math.max(2, colorDepth);
+  accum.fill(0);
+  codetab.fill(0);
+  htab.fill(-1);
+  let cur_accum = 0;
+  let cur_bits = 0;
+  const init_bits = initCodeSize + 1;
+  const g_init_bits = init_bits;
+  let clear_flg = false;
+  let n_bits = g_init_bits;
+  let maxcode = (1 << n_bits) - 1;
+  const ClearCode = 1 << init_bits - 1;
+  const EOFCode = ClearCode + 1;
+  let free_ent = ClearCode + 2;
+  let a_count = 0;
+  let ent = pixels[0];
+  let hshift = 0;
+  for (let fcode = hsize; fcode < 65536; fcode *= 2) {
+    ++hshift;
+  }
+  hshift = 8 - hshift;
+  outStream.writeByte(initCodeSize);
+  output(ClearCode);
+  const length = pixels.length;
+  for (let idx = 1; idx < length; idx++) {
+    next_block: {
+      const c = pixels[idx];
+      const fcode = (c << BITS) + ent;
+      let i = c << hshift ^ ent;
+      if (htab[i] === fcode) {
+        ent = codetab[i];
+        break next_block;
+      }
+      const disp = i === 0 ? 1 : hsize - i;
+      while (htab[i] >= 0) {
+        i -= disp;
+        if (i < 0)
+          i += hsize;
+        if (htab[i] === fcode) {
+          ent = codetab[i];
+          break next_block;
+        }
+      }
+      output(ent);
+      ent = c;
+      if (free_ent < 1 << BITS) {
+        codetab[i] = free_ent++;
+        htab[i] = fcode;
+      } else {
+        htab.fill(-1);
+        free_ent = ClearCode + 2;
+        clear_flg = true;
+        output(ClearCode);
+      }
+    }
+  }
+  output(ent);
+  output(EOFCode);
+  outStream.writeByte(0);
+  return outStream.bytesView();
+  function output(code) {
+    cur_accum &= MASKS[cur_bits];
+    if (cur_bits > 0)
+      cur_accum |= code << cur_bits;
+    else
+      cur_accum = code;
+    cur_bits += n_bits;
+    while (cur_bits >= 8) {
+      accum[a_count++] = cur_accum & 255;
+      if (a_count >= 254) {
+        outStream.writeByte(a_count);
+        outStream.writeBytesView(accum, 0, a_count);
+        a_count = 0;
+      }
+      cur_accum >>= 8;
+      cur_bits -= 8;
+    }
+    if (free_ent > maxcode || clear_flg) {
+      if (clear_flg) {
+        n_bits = g_init_bits;
+        maxcode = (1 << n_bits) - 1;
+        clear_flg = false;
+      } else {
+        ++n_bits;
+        maxcode = n_bits === BITS ? 1 << n_bits : (1 << n_bits) - 1;
+      }
+    }
+    if (code == EOFCode) {
+      while (cur_bits > 0) {
+        accum[a_count++] = cur_accum & 255;
+        if (a_count >= 254) {
+          outStream.writeByte(a_count);
+          outStream.writeBytesView(accum, 0, a_count);
+          a_count = 0;
+        }
+        cur_accum >>= 8;
+        cur_bits -= 8;
+      }
+      if (a_count > 0) {
+        outStream.writeByte(a_count);
+        outStream.writeBytesView(accum, 0, a_count);
+        a_count = 0;
+      }
+    }
+  }
+}
+var lzwEncode_default = lzwEncode;
+
+// src/rgb-packing.js
+function rgb888_to_rgb565(r, g, b) {
+  return r << 8 & 63488 | g << 2 & 992 | b >> 3;
+}
+function rgba8888_to_rgba4444(r, g, b, a) {
+  return r >> 4 | g & 240 | (b & 240) << 4 | (a & 240) << 8;
+}
+function rgb888_to_rgb444(r, g, b) {
+  return r >> 4 << 8 | g & 240 | b >> 4;
+}
+
+// src/pnnquant2.js
+function clamp(value, min, max) {
+  return value < min ? min : value > max ? max : value;
+}
+function sqr(value) {
+  return value * value;
+}
+function find_nn(bins, idx, hasAlpha) {
+  var nn = 0;
+  var err = 1e100;
+  const bin1 = bins[idx];
+  const n1 = bin1.cnt;
+  const wa = bin1.ac;
+  const wr = bin1.rc;
+  const wg = bin1.gc;
+  const wb = bin1.bc;
+  for (var i = bin1.fw; i != 0; i = bins[i].fw) {
+    const bin = bins[i];
+    const n2 = bin.cnt;
+    const nerr2 = n1 * n2 / (n1 + n2);
+    if (nerr2 >= err)
+      continue;
+    var nerr = 0;
+    if (hasAlpha) {
+      nerr += nerr2 * sqr(bin.ac - wa);
+      if (nerr >= err)
+        continue;
+    }
+    nerr += nerr2 * sqr(bin.rc - wr);
+    if (nerr >= err)
+      continue;
+    nerr += nerr2 * sqr(bin.gc - wg);
+    if (nerr >= err)
+      continue;
+    nerr += nerr2 * sqr(bin.bc - wb);
+    if (nerr >= err)
+      continue;
+    err = nerr;
+    nn = i;
+  }
+  bin1.err = err;
+  bin1.nn = nn;
+}
+function create_bin() {
+  return {
+    ac: 0,
+    rc: 0,
+    gc: 0,
+    bc: 0,
+    cnt: 0,
+    nn: 0,
+    fw: 0,
+    bk: 0,
+    tm: 0,
+    mtm: 0,
+    err: 0
+  };
+}
+function create_bin_list(data, format) {
+  const bincount = format === "rgb444" ? 4096 : 65536;
+  const bins = new Array(bincount);
+  const size = data.length;
+  if (format === "rgba4444") {
+    for (let i = 0; i < size; ++i) {
+      const color = data[i];
+      const a = color >> 24 & 255;
+      const b = color >> 16 & 255;
+      const g = color >> 8 & 255;
+      const r = color & 255;
+      const index = rgba8888_to_rgba4444(r, g, b, a);
+      let bin = index in bins ? bins[index] : bins[index] = create_bin();
+      bin.rc += r;
+      bin.gc += g;
+      bin.bc += b;
+      bin.ac += a;
+      bin.cnt++;
+    }
+  } else if (format === "rgb444") {
+    for (let i = 0; i < size; ++i) {
+      const color = data[i];
+      const b = color >> 16 & 255;
+      const g = color >> 8 & 255;
+      const r = color & 255;
+      const index = rgb888_to_rgb444(r, g, b);
+      let bin = index in bins ? bins[index] : bins[index] = create_bin();
+      bin.rc += r;
+      bin.gc += g;
+      bin.bc += b;
+      bin.cnt++;
+    }
+  } else {
+    for (let i = 0; i < size; ++i) {
+      const color = data[i];
+      const b = color >> 16 & 255;
+      const g = color >> 8 & 255;
+      const r = color & 255;
+      const index = rgb888_to_rgb565(r, g, b);
+      let bin = index in bins ? bins[index] : bins[index] = create_bin();
+      bin.rc += r;
+      bin.gc += g;
+      bin.bc += b;
+      bin.cnt++;
+    }
+  }
+  return bins;
+}
+function quantize(rgba, maxColors, opts = {}) {
+  const {
+    format = "rgb565",
+    clearAlpha = true,
+    clearAlphaColor = 0,
+    clearAlphaThreshold = 0,
+    oneBitAlpha = false
+  } = opts;
+  if (!rgba || !rgba.buffer) {
+    throw new Error("quantize() expected RGBA Uint8Array data");
+  }
+  if (!(rgba instanceof Uint8Array) && !(rgba instanceof Uint8ClampedArray)) {
+    throw new Error("quantize() expected RGBA Uint8Array data");
+  }
+  const data = new Uint32Array(rgba.buffer);
+  let useSqrt = opts.useSqrt !== false;
+  const hasAlpha = format === "rgba4444";
+  const bins = create_bin_list(data, format);
+  const bincount = bins.length;
+  const bincountMinusOne = bincount - 1;
+  const heap = new Uint32Array(bincount + 1);
+  var maxbins = 0;
+  for (var i = 0; i < bincount; ++i) {
+    const bin = bins[i];
+    if (bin != null) {
+      var d = 1 / bin.cnt;
+      if (hasAlpha)
+        bin.ac *= d;
+      bin.rc *= d;
+      bin.gc *= d;
+      bin.bc *= d;
+      bins[maxbins++] = bin;
+    }
+  }
+  if (sqr(maxColors) / maxbins < 0.022) {
+    useSqrt = false;
+  }
+  var i = 0;
+  for (; i < maxbins - 1; ++i) {
+    bins[i].fw = i + 1;
+    bins[i + 1].bk = i;
+    if (useSqrt)
+      bins[i].cnt = Math.sqrt(bins[i].cnt);
+  }
+  if (useSqrt)
+    bins[i].cnt = Math.sqrt(bins[i].cnt);
+  var h, l, l2;
+  for (i = 0; i < maxbins; ++i) {
+    find_nn(bins, i, false);
+    var err = bins[i].err;
+    for (l = ++heap[0]; l > 1; l = l2) {
+      l2 = l >> 1;
+      if (bins[h = heap[l2]].err <= err)
+        break;
+      heap[l] = h;
+    }
+    heap[l] = i;
+  }
+  var extbins = maxbins - maxColors;
+  for (i = 0; i < extbins; ) {
+    var tb;
+    for (; ; ) {
+      var b1 = heap[1];
+      tb = bins[b1];
+      if (tb.tm >= tb.mtm && bins[tb.nn].mtm <= tb.tm)
+        break;
+      if (tb.mtm == bincountMinusOne)
+        b1 = heap[1] = heap[heap[0]--];
+      else {
+        find_nn(bins, b1, false);
+        tb.tm = i;
+      }
+      var err = bins[b1].err;
+      for (l = 1; (l2 = l + l) <= heap[0]; l = l2) {
+        if (l2 < heap[0] && bins[heap[l2]].err > bins[heap[l2 + 1]].err)
+          l2++;
+        if (err <= bins[h = heap[l2]].err)
+          break;
+        heap[l] = h;
+      }
+      heap[l] = b1;
+    }
+    var nb = bins[tb.nn];
+    var n1 = tb.cnt;
+    var n2 = nb.cnt;
+    var d = 1 / (n1 + n2);
+    if (hasAlpha)
+      tb.ac = d * (n1 * tb.ac + n2 * nb.ac);
+    tb.rc = d * (n1 * tb.rc + n2 * nb.rc);
+    tb.gc = d * (n1 * tb.gc + n2 * nb.gc);
+    tb.bc = d * (n1 * tb.bc + n2 * nb.bc);
+    tb.cnt += nb.cnt;
+    tb.mtm = ++i;
+    bins[nb.bk].fw = nb.fw;
+    bins[nb.fw].bk = nb.bk;
+    nb.mtm = bincountMinusOne;
+  }
+  let palette = [];
+  var k = 0;
+  for (i = 0; ; ++k) {
+    let r = clamp(Math.round(bins[i].rc), 0, 255);
+    let g = clamp(Math.round(bins[i].gc), 0, 255);
+    let b = clamp(Math.round(bins[i].bc), 0, 255);
+    let a = 255;
+    if (hasAlpha) {
+      a = clamp(Math.round(bins[i].ac), 0, 255);
+      if (oneBitAlpha) {
+        const threshold = typeof oneBitAlpha === "number" ? oneBitAlpha : 127;
+        a = a <= threshold ? 0 : 255;
+      }
+      if (clearAlpha && a <= clearAlphaThreshold) {
+        r = g = b = clearAlphaColor;
+        a = 0;
+      }
+    }
+    const color = hasAlpha ? [r, g, b, a] : [r, g, b];
+    const exists = existsInPalette(palette, color);
+    if (!exists)
+      palette.push(color);
+    if ((i = bins[i].fw) == 0)
+      break;
+  }
+  return palette;
+}
+function existsInPalette(palette, color) {
+  for (let i = 0; i < palette.length; i++) {
+    const p = palette[i];
+    let matchesRGB = p[0] === color[0] && p[1] === color[1] && p[2] === color[2];
+    let matchesAlpha = p.length >= 4 && color.length >= 4 ? p[3] === color[3] : true;
+    if (matchesRGB && matchesAlpha)
+      return true;
+  }
+  return false;
+}
+
+// src/color.js
+function euclideanDistanceSquared(a, b) {
+  var sum = 0;
+  var n;
+  for (n = 0; n < a.length; n++) {
+    const dx = a[n] - b[n];
+    sum += dx * dx;
+  }
+  return sum;
+}
+
+// src/palettize.js
+function roundStep(byte, step) {
+  return step > 1 ? Math.round(byte / step) * step : byte;
+}
+function prequantize(rgba, {roundRGB = 5, roundAlpha = 10, oneBitAlpha = null} = {}) {
+  const data = new Uint32Array(rgba.buffer);
+  for (let i = 0; i < data.length; i++) {
+    const color = data[i];
+    let a = color >> 24 & 255;
+    let b = color >> 16 & 255;
+    let g = color >> 8 & 255;
+    let r = color & 255;
+    a = roundStep(a, roundAlpha);
+    if (oneBitAlpha) {
+      const threshold = typeof oneBitAlpha === "number" ? oneBitAlpha : 127;
+      a = a <= threshold ? 0 : 255;
+    }
+    r = roundStep(r, roundRGB);
+    g = roundStep(g, roundRGB);
+    b = roundStep(b, roundRGB);
+    data[i] = a << 24 | b << 16 | g << 8 | r << 0;
+  }
+}
+function applyPalette(rgba, palette, format = "rgb565") {
+  if (!rgba || !rgba.buffer) {
+    throw new Error("quantize() expected RGBA Uint8Array data");
+  }
+  if (!(rgba instanceof Uint8Array) && !(rgba instanceof Uint8ClampedArray)) {
+    throw new Error("quantize() expected RGBA Uint8Array data");
+  }
+  if (palette.length > 256) {
+    throw new Error("applyPalette() only works with 256 colors or less");
+  }
+  const data = new Uint32Array(rgba.buffer);
+  const length = data.length;
+  const bincount = format === "rgb444" ? 4096 : 65536;
+  const index = new Uint8Array(length);
+  const cache = new Array(bincount);
+  const hasAlpha = format === "rgba4444";
+  if (format === "rgba4444") {
+    for (let i = 0; i < length; i++) {
+      const color = data[i];
+      const a = color >> 24 & 255;
+      const b = color >> 16 & 255;
+      const g = color >> 8 & 255;
+      const r = color & 255;
+      const key = rgba8888_to_rgba4444(r, g, b, a);
+      const idx = key in cache ? cache[key] : cache[key] = nearestColorIndexRGBA(r, g, b, a, palette);
+      index[i] = idx;
+    }
+  } else {
+    const rgb888_to_key = format === "rgb444" ? rgb888_to_rgb444 : rgb888_to_rgb565;
+    for (let i = 0; i < length; i++) {
+      const color = data[i];
+      const b = color >> 16 & 255;
+      const g = color >> 8 & 255;
+      const r = color & 255;
+      const key = rgb888_to_key(r, g, b);
+      const idx = key in cache ? cache[key] : cache[key] = nearestColorIndexRGB(r, g, b, palette);
+      index[i] = idx;
+    }
+  }
+  return index;
+}
+function nearestColorIndexRGBA(r, g, b, a, palette) {
+  let k = 0;
+  let mindist = 1e100;
+  for (let i = 0; i < palette.length; i++) {
+    const px2 = palette[i];
+    const a2 = px2[3];
+    let curdist = sqr2(a2 - a);
+    if (curdist > mindist)
+      continue;
+    const r2 = px2[0];
+    curdist += sqr2(r2 - r);
+    if (curdist > mindist)
+      continue;
+    const g2 = px2[1];
+    curdist += sqr2(g2 - g);
+    if (curdist > mindist)
+      continue;
+    const b2 = px2[2];
+    curdist += sqr2(b2 - b);
+    if (curdist > mindist)
+      continue;
+    mindist = curdist;
+    k = i;
+  }
+  return k;
+}
+function nearestColorIndexRGB(r, g, b, palette) {
+  let k = 0;
+  let mindist = 1e100;
+  for (let i = 0; i < palette.length; i++) {
+    const px2 = palette[i];
+    const r2 = px2[0];
+    let curdist = sqr2(r2 - r);
+    if (curdist > mindist)
+      continue;
+    const g2 = px2[1];
+    curdist += sqr2(g2 - g);
+    if (curdist > mindist)
+      continue;
+    const b2 = px2[2];
+    curdist += sqr2(b2 - b);
+    if (curdist > mindist)
+      continue;
+    mindist = curdist;
+    k = i;
+  }
+  return k;
+}
+function snapColorsToPalette(palette, knownColors, threshold = 5) {
+  if (!palette.length || !knownColors.length)
+    return;
+  const paletteRGB = palette.map((p) => p.slice(0, 3));
+  const thresholdSq = threshold * threshold;
+  const dim = palette[0].length;
+  for (let i = 0; i < knownColors.length; i++) {
+    let color = knownColors[i];
+    if (color.length < dim) {
+      color = [color[0], color[1], color[2], 255];
+    } else if (color.length > dim) {
+      color = color.slice(0, 3);
+    } else {
+      color = color.slice();
+    }
+    const r = nearestColorIndexWithDistance(paletteRGB, color.slice(0, 3), euclideanDistanceSquared);
+    const idx = r[0];
+    const distanceSq = r[1];
+    if (distanceSq > 0 && distanceSq <= thresholdSq) {
+      palette[idx] = color;
+    }
+  }
+}
+function sqr2(a) {
+  return a * a;
+}
+function nearestColorIndex(colors, pixel, distanceFn = euclideanDistanceSquared) {
+  let minDist = Infinity;
+  let minDistIndex = -1;
+  for (let j = 0; j < colors.length; j++) {
+    const paletteColor = colors[j];
+    const dist = distanceFn(pixel, paletteColor);
+    if (dist < minDist) {
+      minDist = dist;
+      minDistIndex = j;
+    }
+  }
+  return minDistIndex;
+}
+function nearestColorIndexWithDistance(colors, pixel, distanceFn = euclideanDistanceSquared) {
+  let minDist = Infinity;
+  let minDistIndex = -1;
+  for (let j = 0; j < colors.length; j++) {
+    const paletteColor = colors[j];
+    const dist = distanceFn(pixel, paletteColor);
+    if (dist < minDist) {
+      minDist = dist;
+      minDistIndex = j;
+    }
+  }
+  return [minDistIndex, minDist];
+}
+function nearestColor(colors, pixel, distanceFn = euclideanDistanceSquared) {
+  return colors[nearestColorIndex(colors, pixel, distanceFn)];
+}
+
+// src/index.js
+function GIFEncoder(opt = {}) {
+  const {initialCapacity = 4096, auto = true} = opt;
+  const stream = createStream(initialCapacity);
+  const HSIZE = 5003;
+  const accum = new Uint8Array(256);
+  const htab = new Int32Array(HSIZE);
+  const codetab = new Int32Array(HSIZE);
+  let hasInit = false;
+  return {
+    reset() {
+      stream.reset();
+      hasInit = false;
+    },
+    finish() {
+      stream.writeByte(constants_default.trailer);
+    },
+    bytes() {
+      return stream.bytes();
+    },
+    bytesView() {
+      return stream.bytesView();
+    },
+    get buffer() {
+      return stream.buffer;
+    },
+    get stream() {
+      return stream;
+    },
+    writeHeader,
+    writeFrame(index, width, height, opts = {}) {
+      const {
+        transparent = false,
+        transparentIndex = 0,
+        delay = 0,
+        palette = null,
+        repeat = 0,
+        colorDepth = 8,
+        dispose = -1
+      } = opts;
+      let first = false;
+      if (auto) {
+        if (!hasInit) {
+          first = true;
+          writeHeader();
+          hasInit = true;
+        }
+      } else {
+        first = Boolean(opts.first);
+      }
+      width = Math.max(0, Math.floor(width));
+      height = Math.max(0, Math.floor(height));
+      if (first) {
+        if (!palette) {
+          throw new Error("First frame must include a { palette } option");
+        }
+        encodeLogicalScreenDescriptor(stream, width, height, palette, colorDepth);
+        encodeColorTable(stream, palette);
+        if (repeat >= 0) {
+          encodeNetscapeExt(stream, repeat);
+        }
+      }
+      const delayTime = Math.round(delay / 10);
+      encodeGraphicControlExt(stream, dispose, delayTime, transparent, transparentIndex);
+      const useLocalColorTable = Boolean(palette) && !first;
+      encodeImageDescriptor(stream, width, height, useLocalColorTable ? palette : null);
+      if (useLocalColorTable)
+        encodeColorTable(stream, palette);
+      encodePixels(stream, index, width, height, colorDepth, accum, htab, codetab);
+    }
+  };
+  function writeHeader() {
+    writeUTFBytes(stream, "GIF89a");
+  }
+}
+function encodeGraphicControlExt(stream, dispose, delay, transparent, transparentIndex) {
+  stream.writeByte(33);
+  stream.writeByte(249);
+  stream.writeByte(4);
+  if (transparentIndex < 0) {
+    transparentIndex = 0;
+    transparent = false;
+  }
+  var transp, disp;
+  if (!transparent) {
+    transp = 0;
+    disp = 0;
+  } else {
+    transp = 1;
+    disp = 2;
+  }
+  if (dispose >= 0) {
+    disp = dispose & 7;
+  }
+  disp <<= 2;
+  const userInput = 0;
+  stream.writeByte(0 | disp | userInput | transp);
+  writeUInt16(stream, delay);
+  stream.writeByte(transparentIndex || 0);
+  stream.writeByte(0);
+}
+function encodeLogicalScreenDescriptor(stream, width, height, palette, colorDepth = 8) {
+  const globalColorTableFlag = 1;
+  const sortFlag = 0;
+  const globalColorTableSize = colorTableSize(palette.length) - 1;
+  const fields = globalColorTableFlag << 7 | colorDepth - 1 << 4 | sortFlag << 3 | globalColorTableSize;
+  const backgroundColorIndex = 0;
+  const pixelAspectRatio = 0;
+  writeUInt16(stream, width);
+  writeUInt16(stream, height);
+  stream.writeBytes([fields, backgroundColorIndex, pixelAspectRatio]);
+}
+function encodeNetscapeExt(stream, repeat) {
+  stream.writeByte(33);
+  stream.writeByte(255);
+  stream.writeByte(11);
+  writeUTFBytes(stream, "NETSCAPE2.0");
+  stream.writeByte(3);
+  stream.writeByte(1);
+  writeUInt16(stream, repeat);
+  stream.writeByte(0);
+}
+function encodeColorTable(stream, palette) {
+  const colorTableLength = 1 << colorTableSize(palette.length);
+  for (let i = 0; i < colorTableLength; i++) {
+    let color = [0, 0, 0];
+    if (i < palette.length) {
+      color = palette[i];
+    }
+    stream.writeByte(color[0]);
+    stream.writeByte(color[1]);
+    stream.writeByte(color[2]);
+  }
+}
+function encodeImageDescriptor(stream, width, height, localPalette) {
+  stream.writeByte(44);
+  writeUInt16(stream, 0);
+  writeUInt16(stream, 0);
+  writeUInt16(stream, width);
+  writeUInt16(stream, height);
+  if (localPalette) {
+    const interlace = 0;
+    const sorted = 0;
+    const palSize = colorTableSize(localPalette.length) - 1;
+    stream.writeByte(128 | interlace | sorted | 0 | palSize);
+  } else {
+    stream.writeByte(0);
+  }
+}
+function encodePixels(stream, index, width, height, colorDepth = 8, accum, htab, codetab) {
+  lzwEncode_default(width, height, index, colorDepth, stream, accum, htab, codetab);
+}
+function writeUInt16(stream, short) {
+  stream.writeByte(short & 255);
+  stream.writeByte(short >> 8 & 255);
+}
+function writeUTFBytes(stream, text) {
+  for (var i = 0; i < text.length; i++) {
+    stream.writeByte(text.charCodeAt(i));
+  }
+}
+function colorTableSize(length) {
+  return Math.max(Math.ceil(Math.log2(length)), 1);
+}
+var src_default = GIFEncoder;
+
+
+window.gifenc=exports;})();
+</script>
+
+<script>
+  function showLoadError(msg) {
+    const stage = document.getElementById('stage');
+    if (!stage || stage.querySelector('.load-error')) return;
+    const el = document.createElement('p');
+    el.className = 'load-error';
+    el.textContent = msg;
+    stage.appendChild(el);
+  }
+  window.addEventListener('error', e => showLoadError('The simulation hit an error: ' + (e.message || 'unknown') + '. Try reloading the page.'));
+  window.addEventListener('load', () => {
+    if (!window.p5) showLoadError('The drawing library didn\u2019t load. Check your connection and reload the page.');
+  });
+
+  const params = { mass: 6, damping: 0.25, pull: 0.03, count: 25, space: 35, maxSpeed: 3, orbit: 'ccw', orbitRadius: 70, align: 0.5, neighbors: 2, showTriangle: true, trails: false, allLines: false, mode: 'equilateral' };
+  const REPEL_STRENGTH = 1.2;  // force at zero distance; fades smoothly to nothing at the personal-space edge
+  const FOLLOW_GAP = 45;
+  const VIEW_CLEAR = 22;      // secret admirer: how far another dancer must be from your sightline not to block it
+  const HIDE_GAP = 20;        // bomb and shield: the least distance you keep behind your shield
+  const FLEE_STEP = 100;      // secret spooky: how far ahead each dancer aims when running away
+  const ORBIT_LEAD = 0.6;     // secret planet: radians ahead on the circle each dancer aims for   // secret leader: how close a follower gets before easing off
+  const SQRT3_2 = Math.sqrt(3) / 2;
+  let ROOM_W = 1200, ROOM_H = 800;            // world units; reset to the stage's size in pixels on first layout
+  const MIN_ZOOM = 0.15, MAX_ZOOM = 10;
+  const cam = { x: ROOM_W / 2, y: ROOM_H / 2, zoom: 1 };
+  let cameraChanged = true;
+  let cameraMoved = false;   // once the viewer pans or zooms, stop refitting the room on resize
+  let dancers = [];
+  let selected = 0;
+  let colors = {};
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    const v = name => cs.getPropertyValue(name).trim();
+    colors = {
+      floor: v('--floor'), line: v('--floor-line'), dot: v('--dot'), void: v('--void'),
+      pink: v('--tape-pink'), cyan: v('--tape-cyan'), yellow: v('--tape-yellow')
+    };
+  }
+
+  // ---------- Camera ----------
+  function screenToWorld(sx, sy) {
+    return [(sx - width / 2) / cam.zoom + cam.x, (sy - height / 2) / cam.zoom + cam.y];
+  }
+  function zoomAt(sx, sy, factor) {
+    const [wx, wy] = screenToWorld(sx, sy);
+    cam.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, cam.zoom * factor));
+    cam.x = wx - (sx - width / 2) / cam.zoom;
+    cam.y = wy - (sy - height / 2) / cam.zoom;
+    cameraChanged = true; cameraMoved = true;
+  }
+  function panBy(dxScreen, dyScreen) {
+    cam.x -= dxScreen / cam.zoom;
+    cam.y -= dyScreen / cam.zoom;
+    cameraChanged = true; cameraMoved = true;
+  }
+  function fitRoom() {
+    cam.zoom = Math.min(width / ROOM_W, height / ROOM_H);
+    cam.x = ROOM_W / 2; cam.y = ROOM_H / 2;
+    cameraChanged = true; cameraMoved = false;
+  }
+  // Size the room to match the stage, carrying any dancers along proportionally.
+  function setRoom(w, h) {
+    for (const d of dancers) { d.x *= w / ROOM_W; d.y *= h / ROOM_H; }
+    ROOM_W = w; ROOM_H = h;
+  }
+
+  // ---------- Dancers ----------
+  function newDancer() {
+    return { x: random(ROOM_W * 0.1, ROOM_W * 0.9), y: random(ROOM_H * 0.1, ROOM_H * 0.9), vx: 0, vy: 0, tx: 0, ty: 0, a: 0, b: 0 };
+  }
+  function pickPartners(i, n) {
+    let a, b;
+    do { a = Math.floor(Math.random() * n); } while (a === i);
+    do { b = Math.floor(Math.random() * n); } while (b === i || b === a);
+    return [a, b];
+  }
+  function repick() {
+    const n = dancers.length;
+    dancers.forEach((d, i) => { [d.a, d.b] = pickPartners(i, n); d.dir = Math.random() < 0.5 ? 1 : -1; });
+  }
+  function makeDancers(n) {
+    dancers = Array.from({ length: n }, newDancer);
+    repick();
+    selected = Math.min(selected, n - 1);
+  }
+  const FAN_SCATTER_R = 130;  // secret admirer: scatter into a tight crowd so sightlines get blocked
+  function scatter() {
+    dancers.forEach(d => {
+      if (params.mode === 'fan') {
+        // Uniform over a small disc in the middle of the room.
+        const ang = Math.random() * Math.PI * 2, rad = FAN_SCATTER_R * Math.sqrt(Math.random());
+        d.x = ROOM_W / 2 + Math.cos(ang) * rad; d.y = ROOM_H / 2 + Math.sin(ang) * rad;
+      } else {
+        d.x = random(ROOM_W * 0.1, ROOM_W * 0.9); d.y = random(ROOM_H * 0.1, ROOM_H * 0.9);
+      }
+      d.vx = 0; d.vy = 0;
+    });
+    cameraChanged = true;
+  }
+  function resizeCount(n) {
+    while (dancers.length < n) dancers.push(newDancer());
+    dancers.length = n;
+    repick();
+    selected = Math.min(selected, n - 1);
+  }
+
+  // The third vertex of an equilateral triangle on A–B, choosing whichever of the two options is closer.
+  function triangleTarget(d) {
+    const A = dancers[d.a], B = dancers[d.b];
+    const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+    const dx = B.x - A.x, dy = B.y - A.y;
+    if (params.mode === 'boids') {
+      // No secret choice: walk toward the centre of mass of your nearest neighbours.
+      const k = Math.min(params.neighbors, dancers.length - 1);
+      const best = [];                                 // [dist², index], kept sorted, length ≤ k
+      for (let i = 0; i < dancers.length; i++) {
+        const q = dancers[i];
+        if (q === d) continue;
+        const d2 = (q.x - d.x) ** 2 + (q.y - d.y) ** 2;
+        if (best.length < k || d2 < best[best.length - 1][0]) {
+          best.push([d2, i]); best.sort((u, v) => u[0] - v[0]);
+          if (best.length > k) best.pop();
+        }
+      }
+      d.near = best.map(b => b[1]);
+      if (!best.length) return [d.x, d.y];
+      let cx = 0, cy = 0;
+      for (const [, i] of best) { cx += dancers[i].x; cy += dancers[i].y; }
+      return [cx / best.length, cy / best.length];
+    }
+    if (params.mode === 'fan') {
+      // Keep an unobstructed view of your crush (a). Find anyone standing in the sightline,
+      // and slide sideways just far enough to see past the worst one.
+      const lx = A.x - d.x, ly = A.y - d.y, L = Math.hypot(lx, ly);
+      d.blocker = -1;
+      if (L < 1e-6) return [d.x, d.y];
+      const ux = lx / L, uy = ly / L, nx = -uy, ny = ux;
+      let need = 0, side = 1;
+      for (let k = 0; k < dancers.length; k++) {
+        const q = dancers[k];
+        if (q === d || q === A) continue;
+        const qx = q.x - d.x, qy = q.y - d.y;
+        const t = qx * ux + qy * uy;                 // how far along the sightline
+        if (t <= 0 || t >= L) continue;
+        const off = qx * nx + qy * ny;               // signed distance from the sightline
+        if (Math.abs(off) >= VIEW_CLEAR) continue;
+        // Sliding sideways by s moves the sightline at q by s * (1 - t / L).
+        const shift = (VIEW_CLEAR + 4 - Math.abs(off)) / Math.max(0.15, 1 - t / L);
+        if (shift > need) { need = shift; side = off >= 0 ? -1 : 1; d.blocker = k; }
+      }
+      if (need === 0) return [d.x, d.y];             // clear view: stay put
+      need = Math.min(need, 200);
+      return [d.x + nx * side * need, d.y + ny * side * need];
+    }
+    if (params.mode === 'bomb') {
+      // a = bomb, b = shield. Head for the closest point on the line from the bomb through the shield,
+      // keeping at least HIDE_GAP behind the shield.
+      const sx = B.x - A.x, sy = B.y - A.y, ds = Math.hypot(sx, sy);
+      if (ds < 1e-6) return [d.x, d.y];
+      const ux = sx / ds, uy = sy / ds;
+      const t = Math.max(HIDE_GAP, (d.x - B.x) * ux + (d.y - B.y) * uy);
+      return [B.x + ux * t, B.y + uy * t];
+    }
+    if (params.mode === 'spooky') {
+      // Run straight away from the chosen dancer.
+      const ux = d.x - A.x, uy = d.y - A.y, len = Math.hypot(ux, uy);
+      if (len < 1e-6) { const a = Math.random() * Math.PI * 2; return [d.x + Math.cos(a) * FLEE_STEP, d.y + Math.sin(a) * FLEE_STEP]; }
+      return [d.x + ux / len * FLEE_STEP, d.y + uy / len * FLEE_STEP];
+    }
+    if (params.mode === 'planet') {
+      // Aim for a point a little further round a circle of fixed radius centred on the chosen dancer.
+      // Screen y points down, so a growing angle turns clockwise on screen.
+      const dir = params.orbit === 'cw' ? 1 : params.orbit === 'ccw' ? -1 : (d.dir || 1);
+      const R = params.orbitRadius;
+      const ang = Math.atan2(d.y - A.y, d.x - A.x) + dir * ORBIT_LEAD;
+      return [A.x + Math.cos(ang) * R, A.y + Math.sin(ang) * R];
+    }
+    if (params.mode === 'leader') {
+      // Head for the leader, stopping a short gap away on the side you're approaching from.
+      const lx = d.x - A.x, ly = d.y - A.y, len = Math.hypot(lx, ly);
+      if (len < 1e-6) return [A.x, A.y];
+      return [A.x + lx / len * FOLLOW_GAP, A.y + ly / len * FOLLOW_GAP];
+    }
+    if (params.mode === 'isosceles') {
+      // Closest point on the perpendicular bisector of A–B: equally far from both partners.
+      const len = Math.hypot(dx, dy);
+      if (len < 1e-6) return [d.x, d.y];
+      const nx = -dy / len, ny = dx / len;
+      const t = (d.x - mx) * nx + (d.y - my) * ny;
+      return [mx + nx * t, my + ny * t];
+    }
+    const c1x = mx - dy * SQRT3_2, c1y = my + dx * SQRT3_2;
+    const c2x = mx + dy * SQRT3_2, c2y = my - dx * SQRT3_2;
+    const d1 = (c1x - d.x) ** 2 + (c1y - d.y) ** 2;
+    const d2 = (c2x - d.x) ** 2 + (c2y - d.y) ** 2;
+    return d1 < d2 ? [c1x, c1y] : [c2x, c2y];
+  }
+
+  function step() {
+    const margin = 30, WALL = 0.3;   // stiff enough that fleeing dancers stay inside the room
+    for (const d of dancers) { [d.tx, d.ty] = triangleTarget(d); d.rx = 0; d.ry = 0; }
+
+    // Personal space: each close pair pushes apart, strongest when touching and fading to zero at the radius.
+    const R = params.space;
+    if (R > 0) {
+      const R2 = R * R;
+      for (let i = 0; i < dancers.length; i++) {
+        const p = dancers[i];
+        for (let j = i + 1; j < dancers.length; j++) {
+          const q = dancers[j];
+          let dx = p.x - q.x, dy = p.y - q.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= R2) continue;
+          let dist = Math.sqrt(d2);
+          if (dist < 1e-6) { const a = Math.random() * Math.PI * 2; dx = Math.cos(a); dy = Math.sin(a); dist = 1e-6; }
+          const fall = 1 - dist / R;
+          const f = REPEL_STRENGTH * fall * fall / dist;
+          p.rx += dx * f; p.ry += dy * f;
+          q.rx -= dx * f; q.ry -= dy * f;
+        }
+      }
+    }
+
+    // Snapshot velocities so alignment reacts to everyone's previous heading, not a half-updated one.
+    const boidsAlign = params.mode === 'boids' && params.align > 0;
+    if (boidsAlign) for (const d of dancers) { d.pvx = d.vx; d.pvy = d.vy; }
+
+    for (const d of dancers) {
+      let fx = (d.tx - d.x) * params.pull + d.rx;
+      let fy = (d.ty - d.y) * params.pull + d.ry;
+      // Soft walls keep the group in the room.
+      if (d.x < margin) fx += (margin - d.x) * WALL;
+      if (d.x > ROOM_W - margin) fx -= (d.x - (ROOM_W - margin)) * WALL;
+      if (d.y < margin) fy += (margin - d.y) * WALL;
+      if (d.y > ROOM_H - margin) fy -= (d.y - (ROOM_H - margin)) * WALL;
+      // Inertia: acceleration = force / mass. Damping bleeds off velocity each frame.
+      d.vx = (d.vx + fx / params.mass) * (1 - params.damping);
+      d.vy = (d.vy + fy / params.mass) * (1 - params.damping);
+      if (boidsAlign && d.near && d.near.length) {
+        // Alignment: steer toward the average velocity of your nearest neighbours.
+        let ax = 0, ay = 0;
+        for (const i of d.near) { ax += dancers[i].pvx; ay += dancers[i].pvy; }
+        ax /= d.near.length; ay /= d.near.length;
+        const k = params.align * 0.25;
+        d.vx += (ax - d.vx) * k; d.vy += (ay - d.vy) * k;
+        // Like classic boids, keep moving at a cruising pace so a flock has a heading to share.
+        const cruise = params.maxSpeed * 0.6 * params.align;
+        const sp0 = Math.hypot(d.vx, d.vy);
+        if (sp0 < 1e-6) { const a = Math.random() * Math.PI * 2; d.vx = Math.cos(a) * cruise; d.vy = Math.sin(a) * cruise; }
+        else if (sp0 < cruise) { d.vx *= cruise / sp0; d.vy *= cruise / sp0; }
+      }
+      // Cap speed, keeping the direction of travel.
+      const sp = Math.hypot(d.vx, d.vy);
+      if (sp > params.maxSpeed) { d.vx *= params.maxSpeed / sp; d.vy *= params.maxSpeed / sp; }
+    }
+    for (const d of dancers) { d.x += d.vx; d.y += d.vy; }
+  }
+
+  // ---------- p5 ----------
+  let hasFitted = false;
+  function syncCanvasSize() {
+    const stage = document.getElementById('stage');
+    const w = Math.max(1, stage.clientWidth), h = Math.max(1, stage.clientHeight);
+    if (w !== width || h !== height) resizeCanvas(w, h);
+    if (!hasFitted && w > 1 && h > 1) { setRoom(w, h); hasFitted = true; fitRoom(); }
+    else if (!cameraMoved) fitRoom();
+    cameraChanged = true;
+  }
+
+  function setup() {
+    const stage = document.getElementById('stage');
+    const c = createCanvas(Math.max(1, stage.clientWidth), Math.max(1, stage.clientHeight));
+    c.parent(stage);
+    readColors();
+    syncCanvasSize();
+    makeDancers(params.count);
+    bindPointer(c.elt);
+    if (window.ResizeObserver) new ResizeObserver(syncCanvasSize).observe(stage);
+  }
+
+  function windowResized() { syncCanvasSize(); }
+
+  function draw() {
+    step();
+
+    const fullClear = !params.trails || cameraChanged;
+    cameraChanged = false;
+    const [vx0, vy0] = screenToWorld(0, 0);
+    const [vx1, vy1] = screenToWorld(width, height);
+    drawScene(window, {
+      cx: cam.x, cy: cam.y, zoom: cam.zoom, fullClear,
+      bounds: [vx0, vy0, vx1, vy1]       // the floor and grid fill the whole screen
+    });
+
+    captureFrame();
+  }
+
+  // Draws the scene onto g: the main sketch (window) or a p5.Graphics used for recording.
+  function drawScene(g, view) {
+    const { cx, cy, zoom, fullClear, bounds } = view;
+    const [vx0, vy0, vx1, vy1] = bounds;
+
+    if (fullClear) g.background(colors.floor);
+
+    g.push();
+    g.translate(g.width / 2, g.height / 2);
+    g.scale(zoom);
+    g.translate(-cx, -cy);
+    const px = 1 / zoom;   // one output pixel in world units
+
+    if (!fullClear) {
+      const c = g.color(colors.floor); c.setAlpha(28);
+      g.noStroke(); g.fill(c); g.rect(vx0, vy0, vx1 - vx0, vy1 - vy0);
+    }
+
+    // Floor grid, like marley seams
+    g.stroke(colors.line); g.strokeWeight(px);
+    for (let x = Math.ceil(vx0 / 100) * 100; x <= vx1; x += 100) g.line(x, vy0, x, vy1);
+    for (let y = Math.ceil(vy0 / 100) * 100; y <= vy1; y += 100) g.line(vx0, y, vx1, y);
+
+    // Room walls: a slightly stronger outline where the dancers are kept in.
+    g.noFill(); g.stroke(colors.dot); g.strokeWeight(1.5 * px);
+    g.drawingContext.globalAlpha = 0.35; g.rect(0, 0, ROOM_W, ROOM_H); g.drawingContext.globalAlpha = 1;
+
+    if (params.allLines) {
+      const c = g.color(colors.dot); c.setAlpha(params.count > 60 ? 18 : 35);
+      g.stroke(c); g.strokeWeight(px);
+      for (const d of dancers) {
+        if (params.mode === 'boids') {
+          for (const i of (d.near || [])) g.line(d.x, d.y, dancers[i].x, dancers[i].y);
+          continue;
+        }
+        const A = dancers[d.a], B = dancers[d.b];
+        g.line(d.x, d.y, A.x, A.y);
+        if (params.mode === 'equilateral' || params.mode === 'isosceles' || params.mode === 'bomb') g.line(d.x, d.y, B.x, B.y);
+      }
+    }
+
+    const r = params.count > 80 ? 9 : 12;
+    g.noStroke(); g.fill(colors.dot);
+    for (const d of dancers) g.circle(d.x, d.y, r);
+
+    // Highlight the selected dancer's triangle.
+    const s = dancers[selected];
+    if (s && params.showTriangle && params.space > 0) {
+      const c = g.color(colors.pink); c.setAlpha(60);
+      g.noFill(); g.stroke(c); g.strokeWeight(px);
+      g.circle(s.x, s.y, params.space * 2);
+    }
+    if (s && params.showTriangle && params.mode === 'planet') {
+      const A = dancers[s.a];
+      const c = g.color(colors.cyan); c.setAlpha(110);
+      g.noFill(); g.stroke(c); g.strokeWeight(1.5 * px);
+      g.circle(A.x, A.y, params.orbitRadius * 2);
+      g.strokeWeight(2 * px);
+      g.drawingContext.setLineDash([5 * px, 6 * px]);
+      g.stroke(colors.yellow); g.line(s.x, s.y, s.tx, s.ty);
+      g.drawingContext.setLineDash([]);
+      g.noFill(); g.stroke(colors.yellow); g.circle(s.tx, s.ty, 18);
+      g.line(s.tx - 6, s.ty, s.tx + 6, s.ty); g.line(s.tx, s.ty - 6, s.tx, s.ty + 6);
+      g.noStroke();
+      g.fill(colors.cyan); g.circle(A.x, A.y, r + 6);
+      g.fill(colors.pink); g.circle(s.x, s.y, r + 8);
+    } else if (s && params.showTriangle && params.mode === 'boids') {
+      const near = (s.near || []).map(i => dancers[i]);
+      const c = g.color(colors.cyan); c.setAlpha(140);
+      g.stroke(c); g.strokeWeight(1.5 * px);
+      for (const q of near) g.line(s.x, s.y, q.x, q.y);
+      g.strokeWeight(2 * px);
+      g.drawingContext.setLineDash([5 * px, 6 * px]);
+      g.stroke(colors.yellow); g.line(s.x, s.y, s.tx, s.ty);
+      g.drawingContext.setLineDash([]);
+      g.noFill(); g.stroke(colors.yellow); g.circle(s.tx, s.ty, 18);
+      g.line(s.tx - 6, s.ty, s.tx + 6, s.ty); g.line(s.tx, s.ty - 6, s.tx, s.ty + 6);
+      g.noStroke(); g.fill(colors.cyan);
+      for (const q of near) g.circle(q.x, q.y, r + 6);
+      g.fill(colors.pink); g.circle(s.x, s.y, r + 8);
+    } else if (s && params.showTriangle && params.mode === 'fan') {
+      const A = dancers[s.a];
+      const blocked = s.blocker >= 0 && dancers[s.blocker];
+      const c = g.color(colors.cyan); c.setAlpha(blocked ? 110 : 170);
+      g.stroke(c); g.strokeWeight((blocked ? 1.5 : 2) * px);
+      if (blocked) g.drawingContext.setLineDash([3 * px, 5 * px]);
+      g.line(s.x, s.y, A.x, A.y);
+      g.drawingContext.setLineDash([]);
+      if (blocked) {
+        const q = dancers[s.blocker];
+        g.noFill(); g.stroke(colors.yellow); g.strokeWeight(2 * px);
+        g.circle(q.x, q.y, VIEW_CLEAR * 2);
+        g.drawingContext.setLineDash([5 * px, 6 * px]);
+        g.line(s.x, s.y, s.tx, s.ty);
+        g.drawingContext.setLineDash([]);
+        g.circle(s.tx, s.ty, 18);
+        g.line(s.tx - 6, s.ty, s.tx + 6, s.ty); g.line(s.tx, s.ty - 6, s.tx, s.ty + 6);
+      }
+      g.noStroke();
+      g.fill(colors.cyan); g.circle(A.x, A.y, r + 6);
+      g.fill(colors.pink); g.circle(s.x, s.y, r + 8);
+    } else if (s && params.showTriangle && params.mode === 'bomb') {
+      const bomb = dancers[s.a], shield = dancers[s.b];
+      const sx = shield.x - bomb.x, sy = shield.y - bomb.y, ds = Math.hypot(sx, sy);
+      const c = g.color(colors.cyan); c.setAlpha(150);
+      g.stroke(c); g.strokeWeight(1.5 * px);
+      g.line(bomb.x, bomb.y, shield.x, shield.y);
+      if (ds > 1e-6) {
+        // The hiding line: everything behind the shield, starting a short gap back.
+        const ux = sx / ds, uy = sy / ds, far = ROOM_W + ROOM_H;
+        const hl = g.color(colors.yellow); hl.setAlpha(110);
+        g.stroke(hl); g.strokeWeight(3 * px);
+        g.line(shield.x + ux * HIDE_GAP, shield.y + uy * HIDE_GAP, shield.x + ux * far, shield.y + uy * far);
+      }
+      g.strokeWeight(2 * px);
+      g.drawingContext.setLineDash([5 * px, 6 * px]);
+      g.stroke(colors.yellow); g.line(s.x, s.y, s.tx, s.ty);
+      g.drawingContext.setLineDash([]);
+      g.noFill(); g.stroke(colors.yellow); g.circle(s.tx, s.ty, 18);
+      g.line(s.tx - 6, s.ty, s.tx + 6, s.ty); g.line(s.tx, s.ty - 6, s.tx, s.ty + 6);
+      // Shield: solid. Bomb: ring with spikes.
+      g.noStroke(); g.fill(colors.cyan); g.circle(shield.x, shield.y, r + 6);
+      g.noFill(); g.stroke(colors.cyan); g.strokeWeight(3 * px);
+      g.circle(bomb.x, bomb.y, r + 6);
+      for (let k = 0; k < 8; k++) {
+        const a = k * Math.PI / 4, r0 = (r + 6) / 2 + 2, r1 = r0 + 6;
+        g.line(bomb.x + Math.cos(a) * r0, bomb.y + Math.sin(a) * r0, bomb.x + Math.cos(a) * r1, bomb.y + Math.sin(a) * r1);
+      }
+      g.noStroke(); g.fill(colors.pink); g.circle(s.x, s.y, r + 8);
+    } else if (s && params.showTriangle && params.mode === 'spooky') {
+      const A = dancers[s.a];
+      const c = g.color(colors.cyan); c.setAlpha(140);
+      g.stroke(c); g.strokeWeight(1.5 * px);
+      g.line(A.x, A.y, s.x, s.y);
+      g.strokeWeight(2 * px);
+      g.drawingContext.setLineDash([5 * px, 6 * px]);
+      g.stroke(colors.yellow); g.line(s.x, s.y, s.tx, s.ty);
+      g.drawingContext.setLineDash([]);
+      g.noFill(); g.stroke(colors.yellow); g.circle(s.tx, s.ty, 18);
+      g.line(s.tx - 6, s.ty, s.tx + 6, s.ty); g.line(s.tx, s.ty - 6, s.tx, s.ty + 6);
+      g.noStroke();
+      g.fill(colors.cyan); g.circle(A.x, A.y, r + 6);
+      g.fill(colors.pink); g.circle(s.x, s.y, r + 8);
+    } else if (s && params.showTriangle && params.mode === 'leader') {
+      const A = dancers[s.a];
+      g.strokeWeight(2 * px);
+      g.drawingContext.setLineDash([5 * px, 6 * px]);
+      g.stroke(colors.yellow); g.line(s.x, s.y, s.tx, s.ty);
+      g.drawingContext.setLineDash([]);
+      g.stroke(colors.cyan); g.line(s.tx, s.ty, A.x, A.y);
+      g.noFill(); g.stroke(colors.yellow); g.circle(s.tx, s.ty, 18);
+      g.line(s.tx - 6, s.ty, s.tx + 6, s.ty); g.line(s.tx, s.ty - 6, s.tx, s.ty + 6);
+      g.noStroke();
+      g.fill(colors.cyan); g.circle(A.x, A.y, r + 6);
+      g.fill(colors.pink); g.circle(s.x, s.y, r + 8);
+    } else if (s && params.showTriangle) {
+      const A = dancers[s.a], B = dancers[s.b];
+      if (params.mode === 'isosceles') {
+        // Faint line showing every spot that is equally far from both partners.
+        const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy);
+        if (len > 1e-6) {
+          const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, ext = ROOM_W + ROOM_H;
+          const nx = -dy / len * ext, ny = dx / len * ext;
+          const c = g.color(colors.yellow); c.setAlpha(90);
+          g.stroke(c); g.strokeWeight(px);
+          g.line(mx - nx, my - ny, mx + nx, my + ny);
+        }
+      }
+      g.strokeWeight(2 * px);
+      g.stroke(colors.cyan); g.line(A.x, A.y, B.x, B.y);
+      g.drawingContext.setLineDash([5 * px, 6 * px]);
+      g.stroke(colors.yellow); g.line(A.x, A.y, s.tx, s.ty); g.line(B.x, B.y, s.tx, s.ty);
+      g.drawingContext.setLineDash([]);
+      g.noFill(); g.stroke(colors.yellow); g.circle(s.tx, s.ty, 18);
+      g.line(s.tx - 6, s.ty, s.tx + 6, s.ty); g.line(s.tx, s.ty - 6, s.tx, s.ty + 6);
+      g.noStroke();
+      g.fill(colors.cyan); g.circle(A.x, A.y, r + 6); g.circle(B.x, B.y, r + 6);
+      g.fill(colors.pink); g.circle(s.x, s.y, r + 8);
+    }
+    g.pop();
+  }
+
+  // ---------- Pointer: drag to pan, pinch / wheel to zoom, tap to select ----------
+  function bindPointer(el) {
+    const stage = document.getElementById('stage');
+    const pointers = new Map();
+    let tapStart = null, moved = false;
+
+    const local = e => {
+      const r = el.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const pinchInfo = () => {
+      const [p, q] = [...pointers.values()];
+      return { dist: Math.hypot(p.x - q.x, p.y - q.y), mx: (p.x + q.x) / 2, my: (p.y + q.y) / 2 };
+    };
+
+    el.addEventListener('pointerdown', e => {
+      el.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, local(e));
+      if (pointers.size === 1) { tapStart = local(e); moved = false; }
+      else moved = true;
+      stage.classList.add('dragging');
+    });
+
+    el.addEventListener('pointermove', e => {
+      if (!pointers.has(e.pointerId)) return;
+      if (pointers.size === 2) {
+        const before = pinchInfo();
+        pointers.set(e.pointerId, local(e));
+        const after = pinchInfo();
+        if (before.dist > 0) zoomAt(after.mx, after.my, after.dist / before.dist);
+        panBy(after.mx - before.mx, after.my - before.my);
+        return;
+      }
+      const prev = pointers.get(e.pointerId), now = local(e);
+      pointers.set(e.pointerId, now);
+      if (tapStart && Math.hypot(now.x - tapStart.x, now.y - tapStart.y) > 6) moved = true;
+      if (moved) panBy(now.x - prev.x, now.y - prev.y);
+    });
+
+    const end = e => {
+      if (!pointers.has(e.pointerId)) return;
+      if (pointers.size === 1 && !moved && e.type === 'pointerup') selectAt(local(e));
+      pointers.delete(e.pointerId);
+      if (pointers.size === 0) stage.classList.remove('dragging');
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+
+    el.addEventListener('wheel', e => {
+      e.preventDefault();
+      const p = local(e);
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      // ctrlKey is set for trackpad pinch gestures, which send small deltas.
+      zoomAt(p.x, p.y, Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015)));
+    }, { passive: false });
+  }
+
+  function selectAt(p) {
+    const [wx, wy] = screenToWorld(p.x, p.y);
+    const reach = 30 / cam.zoom;
+    let best = -1, bestD = Infinity;
+    dancers.forEach((d, i) => {
+      const dd = (d.x - wx) ** 2 + (d.y - wy) ** 2;
+      if (dd < bestD) { bestD = dd; best = i; }
+    });
+    if (best >= 0 && bestD < reach * reach) selected = best;
+  }
+
+  // Keyboard: + / - to zoom, arrows to pan, 0 to fit
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'range') return;
+    const step = 60;
+    if (e.key === '+' || e.key === '=') zoomAt(width / 2, height / 2, 1.25);
+    else if (e.key === '-' || e.key === '_') zoomAt(width / 2, height / 2, 0.8);
+    else if (e.key === '0') fitRoom();
+    else if (e.key === 'ArrowLeft') panBy(step, 0);
+    else if (e.key === 'ArrowRight') panBy(-step, 0);
+    else if (e.key === 'ArrowUp') panBy(0, step);
+    else if (e.key === 'ArrowDown') panBy(0, -step);
+    else return;
+    e.preventDefault();
+  });
+
+  document.getElementById('zoomIn').addEventListener('click', () => zoomAt(width / 2, height / 2, 1.25));
+  document.getElementById('zoomOut').addEventListener('click', () => zoomAt(width / 2, height / 2, 0.8));
+  document.getElementById('zoomFit').addEventListener('click', fitRoom);
+
+  // ---------- Controls ----------
+  function bindSlider(id, key, fmt, onChange) {
+    const el = document.getElementById(id), out = document.getElementById(id + 'Out');
+    const update = () => {
+      params[key] = parseFloat(el.value);
+      out.textContent = fmt(params[key]);
+      if (onChange) onChange(params[key]);
+    };
+    el.addEventListener('input', update);
+    out.textContent = fmt(parseFloat(el.value));
+    params[key] = parseFloat(el.value);
+  }
+  bindSlider('inertia', 'mass', v => v.toFixed(1));
+  bindSlider('damping', 'damping', v => v.toFixed(3));
+  bindSlider('pull', 'pull', v => v.toFixed(3));
+  bindSlider('neighbors', 'neighbors', v => String(v));
+  bindSlider('align', 'align', v => v.toFixed(2));
+  bindSlider('orbitRadius', 'orbitRadius', v => String(v));
+  bindSlider('maxSpeed', 'maxSpeed', v => v.toFixed(1));
+  bindSlider('space', 'space', v => String(v));
+  bindSlider('count', 'count', v => String(v), v => { if (dancers.length) resizeCount(v); });
+
+  document.getElementById('showTriangle').addEventListener('change', e => { params.showTriangle = e.target.checked; });
+  document.getElementById('trails').addEventListener('change', e => { params.trails = e.target.checked; cameraChanged = true; });
+  document.getElementById('allLines').addEventListener('change', e => { params.allLines = e.target.checked; });
+  const modes = {
+    equilateral: {
+      title: 'Triangles',
+      lede: 'Every camper secretly picks two others and keeps moving to form a triangle with them.',
+      help: 'Stand at the point that makes all three sides equal.',
+      repick: 'Pick new partners'
+    },
+    isosceles: {
+      title: 'Triangles',
+      lede: 'Every camper secretly picks two others and keeps moving to form a triangle with them.',
+      help: 'Stand anywhere equally far from both partners, taking the nearest such spot.',
+      repick: 'Pick new partners'
+    },
+    leader: {
+      title: 'Secret leader',
+      lede: 'Every camper secretly picks one other camper and follows them around the room.',
+      help: 'Walk toward your leader and stay close behind them.',
+      repick: 'Pick new leaders'
+    },
+    planet: {
+      title: 'Secret planet',
+      lede: 'Every camper secretly picks one other camper and keeps circling around them like a moon.',
+      help: 'Walk in a circle around your planet, wherever they go.',
+      repick: 'Pick new planets'
+    },
+    spooky: {
+      title: 'Secret spooky',
+      lede: 'Every camper secretly picks one other camper who spooks them, and keeps running away from them.',
+      help: 'Move directly away from the person who spooks you.',
+      repick: 'Pick new spooks'
+    },
+    bomb: {
+      title: 'Bomb and shield',
+      lede: 'Every camper secretly picks a bomb and a shield, and keeps the shield between themselves and the bomb.',
+      help: 'Move to the nearest point on the line running from your bomb through your shield, staying a little behind the shield. The spiky ring is the bomb; the solid dot is the shield.',
+      repick: 'Pick new partners'
+    },
+    fan: {
+      title: 'Secret admirer',
+      lede: 'Every camper secretly picks someone to admire, and keeps moving so nobody blocks their view.',
+      help: 'If someone steps into your line of sight, slide sideways until you can see your crush again. The yellow ring marks whoever is in the way.',
+      repick: 'Pick new crushes'
+    },
+    boids: {
+      title: 'Boids',
+      lede: 'No secret choices: every camper walks toward the middle of the people nearest to them, and goes the way they\u2019re going.',
+      help: 'Head for the centre of your closest neighbours and match their direction. Who those are changes as everyone moves.',
+      repick: null
+    }
+  };
+  document.querySelectorAll('input[name=orbit]').forEach(r => r.addEventListener('change', e => {
+    params.orbit = e.target.value;
+  }));
+  document.getElementById('mode').addEventListener('change', e => {
+    params.mode = e.target.value;
+    const m = modes[params.mode];
+    document.getElementById('modeTitle').textContent = m.title;
+    document.getElementById('modeLede').textContent = m.lede;
+    document.getElementById('modeHelp').textContent = m.help;
+    const repickBtn = document.getElementById('repick');
+    repickBtn.hidden = !m.repick;
+    if (m.repick) repickBtn.textContent = m.repick;
+    document.getElementById('orbitDir').hidden = params.mode !== 'planet';
+    document.getElementById('boidsOpts').hidden = params.mode !== 'boids';
+  });
+  document.getElementById('repick').addEventListener('click', repick);
+  document.getElementById('scatter').addEventListener('click', scatter);
+
+
+  // ---------- GIF recording ----------
+  const REC_SECONDS = 10, REC_FPS = 30, REC_MAX = 720;   // longest side of the GIF, in pixels
+  let REC_W = REC_MAX, REC_H = REC_MAX;
+  const recBtn = document.getElementById('record');
+  const recStatus = document.getElementById('recStatus');
+  const modeSelect = document.getElementById('mode');
+  let downloads = null;
+  let rec = null;
+  let recGraphics = null;
+
+  (async () => {
+    try { downloads = window.claude ? await window.claude.use('downloads') : null; } catch (e) { downloads = null; }
+    // Outside Claude, fall back to an ordinary browser download.
+    if (!downloads) downloads = { save: ({ filename, data }) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(data); a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    } };
+    recBtn.disabled = false; recBtn.title = '';
+  })();
+
+  function startRecording() {
+    if (rec || !downloads) return;
+    // The GIF always shows exactly the room, independent of where the screen is zoomed or panned.
+    const k = REC_MAX / Math.max(ROOM_W, ROOM_H);
+    REC_W = Math.round(ROOM_W * k); REC_H = Math.round(ROOM_H * k);
+    if (!recGraphics) { recGraphics = createGraphics(REC_W, REC_H); recGraphics.pixelDensity(1); }
+    rec = {
+      encoder: gifenc.GIFEncoder(), start: performance.now(),
+      // Named after the mode of play, e.g. "Secret leader.gif"; colons aren't allowed in file names.
+      filename: modeSelect.options[modeSelect.selectedIndex].text.replace(/[:\\/*?"<>|]/g, '').trim() + '.gif',
+      nextCapture: 0, writtenCs: 0, pending: null, palette: null, firstFrame: true
+    };
+    recBtn.disabled = true; recBtn.classList.add('recording');
+    recStatus.hidden = false;
+  }
+
+  function writePending(endMs) {
+    // GIF delays are in hundredths of a second; carry the rounding so total timing stays accurate.
+    const p = rec.pending;
+    if (!p) return;
+    const endCs = Math.round(endMs / 10);
+    const delayCs = Math.max(2, endCs - rec.writtenCs);
+    rec.writtenCs += delayCs;
+    rec.encoder.writeFrame(p, REC_W, REC_H, { palette: rec.palette, delay: delayCs * 10 });
+    rec.pending = null;
+  }
+
+  function captureFrame() {
+    if (!rec || rec.finishing) return;
+    const t = performance.now() - rec.start;
+
+    // Keep the recording canvas updated every frame so trails fade at the same rate as on screen.
+    drawScene(recGraphics, {
+      cx: ROOM_W / 2, cy: ROOM_H / 2, zoom: REC_W / ROOM_W,
+      fullClear: !params.trails || rec.firstFrame,
+      bounds: [0, 0, ROOM_W, ROOM_H]
+    });
+    rec.firstFrame = false;
+
+    if (t >= rec.nextCapture) {
+      writePending(t);
+      const data = recGraphics.drawingContext.getImageData(0, 0, REC_W, REC_H).data;
+      // The scene uses a handful of colors, so one palette from the first frame serves every frame.
+      if (!rec.palette) rec.palette = gifenc.quantize(data, 128);
+      rec.pending = gifenc.applyPalette(data, rec.palette);
+      // If the browser fell behind, skip ahead rather than writing a burst of frames.
+      rec.nextCapture = Math.max(rec.nextCapture + 1000 / REC_FPS, t + 500 / REC_FPS);
+    }
+
+    recBtn.textContent = 'Recording…';
+    recStatus.textContent = `Recording ${Math.max(0, Math.ceil(REC_SECONDS - t / 1000))}s`;
+    if (t >= REC_SECONDS * 1000) { writePending(t); finishRecording(); }
+  }
+
+  async function finishRecording() {
+    rec.finishing = true;
+    recStatus.textContent = 'Saving GIF';
+    rec.encoder.finish();
+    const blob = new Blob([rec.encoder.bytes()], { type: 'image/gif' });
+    const filename = rec.filename;
+    rec = null;
+    try {
+      await downloads.save({ filename, data: blob });
+      recStatus.textContent = 'GIF saved';
+    } catch (err) {
+      const code = err && err.code;
+      if (code === 'declined') recStatus.textContent = 'Save cancelled';
+      else if (code === 'too_large') recStatus.textContent = 'GIF too large to save';
+      else if (code === 'rate_limited') recStatus.textContent = 'A save prompt is already open';
+      else { recStatus.textContent = 'Saving files isn\u2019t available here'; recBtn.hidden = true; }
+    }
+    recBtn.textContent = 'Record 10s GIF';
+    recBtn.classList.remove('recording');
+    recBtn.disabled = false;
+    setTimeout(() => { if (!rec) recStatus.hidden = true; }, 2500);
+  }
+
+  recBtn.addEventListener('click', startRecording);
+
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const onTheme = () => { readColors(); cameraChanged = true; };
+  mq.addEventListener ? mq.addEventListener('change', onTheme) : mq.addListener(onTheme);
+  new MutationObserver(onTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>
+</body>
+</html>

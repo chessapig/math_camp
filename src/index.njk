@@ -1,0 +1,19 @@
+---
+layout: layouts/base.njk
+---
+<div class="p-4 p-md-5 mb-4 bg-body-tertiary rounded-3">
+  <h1 class="display-5 fw-semibold">{{ site.title }}</h1>
+  <p class="lead mb-0">{{ site.tagline }}</p>
+</div>
+
+<h2 class="h4">Weeks</h2>
+<div class="list-group mb-5">
+  {% for w in collections.week %}
+  <a class="list-group-item list-group-item-action" href="{{ w.url }}">
+    <span class="fw-semibold">{{ w.data.title }}</span>
+    {% if w.data.summary %}<div class="small text-body-secondary">{{ w.data.summary }}</div>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+{% include "activity-cards.njk" %}

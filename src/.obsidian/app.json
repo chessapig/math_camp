@@ -1,0 +1,10 @@
+{
+  "useMarkdownLinks": true,
+  "newLinkFormat": "shortest",
+  "attachmentFolderPath": "assets/images",
+  "alwaysUpdateLinks": true,
+  "userIgnoreFilters": [
+    "_includes/",
+    "_data/"
+  ]
+}

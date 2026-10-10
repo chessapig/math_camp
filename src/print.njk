@@ -1,0 +1,42 @@
+---
+layout: layouts/base.njk
+title: Handbook
+permalink: /print/
+bodyClass: handbook
+---
+{% import "macros.njk" as camp %}
+<section class="handbook-cover">
+  <h1 class="display-4 fw-semibold">{{ site.title }} Handbook</h1>
+  <p class="lead">{{ site.tagline }}</p>
+  <p class="d-print-none">
+    This page contains the whole site on one page, ready to print.
+    <a class="btn btn-sm btn-primary ms-2" href="{{ site.handbookPdf }}">Download PDF</a>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">Print</button>
+  </p>
+  <h2 class="h4 mt-4">Contents</h2>
+  <ol>
+    <li>Weeks<ol>{% for w in collections.week %}<li><a href="#{{ w.fileSlug }}">{{ w.data.title }}</a></li>{% endfor %}</ol></li>
+    <li>Activities<ol>{% for a in collections.activity %}<li><a href="#{{ a.fileSlug }}">{{ a.data.title }}</a></li>{% endfor %}</ol></li>
+  </ol>
+</section>
+
+{% for w in collections.week %}
+<section class="handbook-page week" id="{{ w.fileSlug }}">
+  <h1>{{ w.data.title }}</h1>
+  {% if w.data.summary %}<p class="lead">{{ w.data.summary }}</p>{% endif %}
+  {{ w.content | safe }}
+  <h2 class="h4">Schedule</h2>
+  {{ camp.schedule(w.data.days, collections.activity) }}
+  <h2 class="h4">Materials</h2>
+  {{ camp.shoppingList(w.data.days | weekActivities(collections.activity) | aggregateMaterials) }}
+</section>
+{% endfor %}
+
+{% for a in collections.activity %}
+<section class="handbook-page activity" id="{{ a.fileSlug }}">
+  <h1>{{ a.data.title }}</h1>
+  {{ camp.glance(a.data) }}
+  {{ camp.materialsTable(a.data.materials) }}
+  <div class="activity-body">{{ a.content | safe }}</div>
+</section>
+{% endfor %}

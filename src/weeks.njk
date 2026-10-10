@@ -1,0 +1,19 @@
+---
+layout: layouts/base.njk
+title: Weeks
+permalink: /weeks/
+---
+{% import "macros.njk" as camp %}
+<h1 class="h3 mb-4">Weeks</h1>
+{% for w in collections.week %}
+{% set list = w.data.days | weekActivities(collections.activity) | aggregateMaterials %}
+<div class="card mb-3">
+  <div class="card-body d-flex flex-wrap justify-content-between gap-2">
+    <div>
+      <h2 class="h5 mb-1"><a href="{{ w.url }}">{{ w.data.title }}</a></h2>
+      <div class="small text-body-secondary">{{ w.data.summary }}</div>
+    </div>
+    <div class="text-end small">Estimated materials<br><span class="fs-5 fw-semibold">{{ list.totals.all | money }}</span></div>
+  </div>
+</div>
+{% endfor %}

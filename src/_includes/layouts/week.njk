@@ -1,0 +1,28 @@
+---
+layout: layouts/base.njk
+---
+{% import "macros.njk" as camp %}
+{% set weekActs = days | weekActivities(collections.activity) %}
+<article class="week">
+  <header class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <h1 class="mb-0">{{ title }}</h1>
+    <div class="btn-group btn-group-sm d-print-none" role="group" aria-label="Page tools">
+      <a class="btn btn-outline-secondary" href="{{ page.url }}{{ page.fileSlug }}.pdf">PDF</a>
+      <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Print</button>
+    </div>
+  </header>
+  {% if summary %}<p class="lead">{{ summary }}</p>{% endif %}
+
+  {{ content | safe }}
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <h2 class="h4">Schedule</h2>
+      {{ camp.schedule(days, collections.activity) }}
+    </div>
+    <div class="col-lg-7">
+      <h2 class="h4">Materials</h2>
+      {{ camp.shoppingList(weekActs | aggregateMaterials) }}
+    </div>
+  </div>
+</article>

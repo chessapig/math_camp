@@ -1,0 +1,95 @@
+{# "At a glance" card shown at the top of every activity. #}
+{% macro glance(d) %}
+<div class="card glance mb-4">
+  <div class="card-body">
+    {% if d.summary %}<p class="lead mb-3">{{ d.summary }}</p>{% endif %}
+    <dl class="row mb-0 small">
+      {% if d.duration %}<dt class="col-sm-3">Duration</dt><dd class="col-sm-9">{{ d.duration }}</dd>{% endif %}
+      {% if d.ages %}<dt class="col-sm-3">Ages</dt><dd class="col-sm-9">{{ d.ages }}</dd>{% endif %}
+      {% if d.group_size %}<dt class="col-sm-3">Group size</dt><dd class="col-sm-9">{{ d.group_size }}</dd>{% endif %}
+      {% if d.location %}<dt class="col-sm-3">Location</dt><dd class="col-sm-9">{{ d.location }}</dd>{% endif %}
+      {% if d.topics %}<dt class="col-sm-3">Math topics</dt><dd class="col-sm-9">{% for t in d.topics %}<span class="badge text-bg-light border me-1">{{ t }}</span>{% endfor %}</dd>{% endif %}
+      {% if d.materials %}<dt class="col-sm-3">Est. cost</dt><dd class="col-sm-9">{{ d.materials | materialsCost | money }}</dd>{% endif %}
+    </dl>
+  </div>
+</div>
+{% endmacro %}
+
+{# Materials table for a single activity. #}
+{% macro materialsTable(materials) %}
+{% if materials and materials.length %}
+<div class="card materials mb-4">
+  <div class="card-header fw-semibold">Materials</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <thead><tr><th>Item</th><th class="text-end">Qty</th><th>Type</th><th class="text-end">Unit cost</th><th class="text-end">Total</th></tr></thead>
+      <tbody>
+        {% for m in materials %}
+        <tr>
+          <td>{{ m.item }}{% if m.notes %}<div class="small text-body-secondary">{{ m.notes }}</div>{% endif %}</td>
+          <td class="text-end">{{ m.qty if m.qty is defined else 1 }}</td>
+          <td>{% if m.consumable %}<span class="badge text-bg-warning">Consumable</span>{% else %}<span class="badge text-bg-secondary">Reusable</span>{% endif %}</td>
+          <td class="text-end">{{ m.cost | money }}</td>
+          <td class="text-end">{{ m | lineCost | money }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr class="fw-semibold"><td colspan="4">Estimated total</td><td class="text-end">{{ materials | materialsCost | money }}</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{# Combined shopping list for a set of activities (see lib/materials.js). #}
+{% macro shoppingList(list) %}
+<div class="card materials mb-4">
+  <div class="card-header fw-semibold d-flex justify-content-between">
+    <span>Shopping list</span><span>Total: {{ list.totals.all | money }}</span>
+  </div>
+  {% for group in [
+    { label: "Consumables", note: "summed across every scheduled activity", rows: list.consumable, total: list.totals.consumable },
+    { label: "Reusable", note: "shared between activities: the largest quantity any one activity needs", rows: list.reusable, total: list.totals.reusable }
+  ] %}
+  {% if group.rows.length %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <caption class="caption-top px-3">{{ group.label }} <span class="small">({{ group.note }})</span></caption>
+      <thead><tr><th>Item</th><th class="text-end">Qty</th><th class="text-end">Unit cost</th><th class="text-end">Total</th><th>Used by</th></tr></thead>
+      <tbody>
+        {% for m in group.rows %}
+        <tr>
+          <td>{{ m.item }}</td>
+          <td class="text-end">{{ m.qty }}</td>
+          <td class="text-end">{{ m.cost | money }}</td>
+          <td class="text-end">{{ m.total | money }}</td>
+          <td class="small">{% for u in m.usedBy %}<a href="{{ u.url }}">{{ u.title }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr class="fw-semibold"><td colspan="3">{{ group.label }} subtotal</td><td class="text-end">{{ group.total | money }}</td><td></td></tr></tfoot>
+    </table>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{# Day-by-day schedule for a week. #}
+{% macro schedule(days, activities) %}
+{% for d in days %}
+<div class="card mb-3 schedule-day">
+  <div class="card-header fw-semibold">{{ d.day }}</div>
+  <ul class="list-group list-group-flush">
+    {% for slug in d.activities %}
+    {% set a = slug | findActivity(activities) %}
+    <li class="list-group-item">
+      <a href="{{ a.url }}" class="fw-semibold">{{ a.data.title }}</a>
+      {% if a.data.duration %}<span class="text-body-secondary small">· {{ a.data.duration }}</span>{% endif %}
+      {% if a.data.summary %}<div class="small text-body-secondary">{{ a.data.summary }}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+{% endmacro %}

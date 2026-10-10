@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300" role="img" aria-label="Möbius strip">
+  <rect width="600" height="300" fill="#f8f9fa"/>
+  <g fill="none" stroke-linejoin="round">
+    <path d="M300 150 C 220 40, 70 50, 70 150 C 70 250, 220 260, 300 150" stroke="#0d6efd" stroke-width="44" opacity="0.85"/>
+    <path d="M300 150 C 380 40, 530 50, 530 150 C 530 250, 380 260, 300 150" stroke="#6ea8fe" stroke-width="44" opacity="0.85"/>
+    <path d="M300 150 C 220 40, 70 50, 70 150 C 70 250, 220 260, 300 150 C 380 40, 530 50, 530 150 C 530 250, 380 260, 300 150" stroke="#052c65" stroke-width="2" stroke-dasharray="8 6"/>
+  </g>
+</svg>

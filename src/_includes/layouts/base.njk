@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if title %}{{ title }} · {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ summary or site.tagline }}">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/css/camp.css">
+</head>
+<body class="{{ bodyClass }}">
+  <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom d-print-none">
+    <div class="container">
+      <a class="navbar-brand fw-semibold" href="/">{{ site.title }}</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="nav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link{% if page.url.startsWith('/activities/') %} active{% endif %}" href="/activities/">Activities</a></li>
+          <li class="nav-item"><a class="nav-link{% if page.url.startsWith('/weeks/') %} active{% endif %}" href="/weeks/">Weeks</a></li>
+          <li class="nav-item"><a class="nav-link{% if page.url == '/print/' %} active{% endif %}" href="/print/">Handbook</a></li>
+        </ul>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ site.handbookPdf }}">Download handbook (PDF)</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-4">
+    {{ content | safe }}
+  </main>
+
+  <footer class="container py-4 border-top text-body-secondary small d-print-none">
+    {{ site.title }} · Built with Eleventy and Bootstrap
+  </footer>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/js/camp.js"></script>
+  <!-- Renders $...$ / $$...$$ math (see lib/math.js). -->
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</body>
+</html>

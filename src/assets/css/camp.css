@@ -1,0 +1,54 @@
+/* Camp-specific styles on top of Bootstrap. */
+
+.activity-body h2 { margin-top: 2rem; padding-bottom: .25rem; border-bottom: 1px solid var(--bs-border-color); }
+.activity-body h2:first-child { margin-top: 0; }
+
+/* Rules: the part a facilitator skims for. */
+.camp-rules .card-body > :last-child { margin-bottom: 0; }
+.camp-rules ol, .camp-rules ul { padding-left: 1.25rem; }
+.camp-rules li { margin-bottom: .35rem; font-size: 1.05rem; }
+
+/* Facilitation notes dropdown. */
+details.facilitation { border-color: var(--bs-info-border-subtle); }
+details.facilitation > summary {
+  cursor: pointer;
+  list-style: none;
+  background: var(--bs-info-bg-subtle);
+  color: var(--bs-info-text-emphasis);
+  font-weight: 600;
+}
+details.facilitation > summary::-webkit-details-marker { display: none; }
+details.facilitation > summary::before { content: "▸"; display: inline-block; width: 1.1em; transition: transform .15s; }
+details.facilitation[open] > summary::before { transform: rotate(90deg); }
+details.facilitation .card-body > :last-child { margin-bottom: 0; }
+
+.camp-callout > :last-child { margin-bottom: 0; }
+
+/* Plain "> text" quotes. */
+blockquote.camp-quote {
+  margin: 1.25rem 0;
+  padding: .25rem 0 .25rem 1rem;
+  border-left: .25rem solid var(--bs-secondary-border-subtle);
+  color: var(--bs-secondary-color);
+  font-size: 1.1rem;
+}
+blockquote.camp-quote > :last-child { margin-bottom: 0; }
+
+/* Image cards. */
+.camp-figure { max-width: 38rem; margin-left: auto; margin-right: auto; }
+.camp-figure .card-img-top { background: var(--bs-tertiary-bg); }
+
+.handbook-cover { min-height: 60vh; }
+.handbook-page { padding-top: 2rem; margin-top: 2rem; border-top: 3px solid var(--bs-border-color); }
+
+@media print {
+  @page { margin: 0.6in; }
+  body { font-size: 11pt; }
+  a { color: inherit; text-decoration: none; }
+  .card, .camp-figure, tr, details.facilitation { break-inside: avoid; }
+  h1, h2, h3 { break-after: avoid; }
+  details.facilitation > summary::before { content: ""; width: 0; }
+  .table-responsive { overflow: visible; }
+  .handbook-page { break-before: page; border-top: 0; margin-top: 0; padding-top: 0; }
+  .handbook-cover { min-height: 0; }
+}

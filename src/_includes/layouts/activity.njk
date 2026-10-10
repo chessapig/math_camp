@@ -1,0 +1,28 @@
+---
+layout: layouts/base.njk
+---
+{% import "macros.njk" as camp %}
+<article class="activity">
+  <header class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <h1 class="mb-0">{{ title }}</h1>
+    <div class="btn-group btn-group-sm d-print-none" role="group" aria-label="Page tools">
+      <button type="button" class="btn btn-outline-secondary" data-toggle-notes>Show all notes</button>
+      <a class="btn btn-outline-secondary" href="{{ page.url }}{{ page.fileSlug }}.pdf">PDF</a>
+      <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Print</button>
+    </div>
+  </header>
+
+  {{ camp.glance({ summary: summary, duration: duration, ages: ages, group_size: group_size, location: location, topics: topics, materials: materials }) }}
+  {{ camp.materialsTable(materials) }}
+
+  <div class="activity-body">
+    {{ content | safe }}
+  </div>
+
+  {% set usedIn = collections.week | weeksUsing(page.fileSlug) %}
+  {% if usedIn.length %}
+  <p class="small text-body-secondary mt-4 d-print-none">Scheduled in:
+    {% for w in usedIn %}<a href="{{ w.url }}">{{ w.data.title }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</article>

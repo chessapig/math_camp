@@ -1,0 +1,6 @@
+node_modules/
+_site/
+.DS_Store
+# Obsidian per-user state
+src/.obsidian/workspace*.json
+src/.obsidian/cache

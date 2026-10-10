@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pig: When Should You Hold?</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.min.js"></script>
+</head>
+<body>
+<script>
+// Simulates thousands of Pig turns for each "hold at h" strategy and plots the
+// average points scored per turn. Hover a bar to see its value; click to restart.
+const MAX_H = 40;
+const TURNS_PER_FRAME = 200;
+let sums, turns;
+
+function reset() {
+  sums = new Array(MAX_H + 1).fill(0);
+  turns = 0;
+}
+
+// One turn: keep rolling until the turn total reaches h, or a 1 wipes it out.
+function playTurn(h) {
+  let total = 0;
+  while (total < h) {
+    const roll = floor(random(1, 7));
+    if (roll === 1) return 0;
+    total += roll;
+  }
+  return total;
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  textFont("sans-serif");
+  reset();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function mousePressed() {
+  reset();
+}
+
+function draw() {
+  for (let k = 0; k < TURNS_PER_FRAME; k++) {
+    turns++;
+    for (let h = 1; h <= MAX_H; h++) sums[h] += playTurn(h);
+  }
+
+  const left = 50, right = 20, top = 50, bottom = 45;
+  const plotW = width - left - right;
+  const plotH = height - top - bottom;
+  const yMax = 10;
+  const barW = plotW / MAX_H;
+  const avg = (h) => sums[h] / turns;
+
+  let best = 1;
+  for (let h = 2; h <= MAX_H; h++) if (avg(h) > avg(best)) best = h;
+
+  background(255);
+
+  // Title
+  noStroke();
+  fill(33);
+  textSize(16);
+  textAlign(LEFT, TOP);
+  text("Average points per turn for each \"hold at\" number", left, 12);
+  fill(110);
+  textSize(12);
+  text(`${turns.toLocaleString()} simulated turns per strategy · click to restart`, left, 32);
+
+  // Gridlines and y-axis labels
+  textAlign(RIGHT, CENTER);
+  for (let y = 0; y <= yMax; y += 2) {
+    const py = top + plotH - (y / yMax) * plotH;
+    stroke(230);
+    line(left, py, width - right, py);
+    noStroke();
+    fill(110);
+    text(y, left - 8, py);
+  }
+
+  // Bars
+  let hovered = null;
+  for (let h = 1; h <= MAX_H; h++) {
+    const x = left + (h - 1) * barW;
+    const bh = (avg(h) / yMax) * plotH;
+    const isHover = mouseX >= x && mouseX < x + barW && mouseY > top && mouseY < top + plotH;
+    if (isHover) hovered = h;
+    noStroke();
+    fill(h === best ? "#0d6efd" : isHover ? "#6ea8fe" : "#cfe2ff");
+    rect(x + 1, top + plotH - bh, barW - 2, bh);
+  }
+
+  // X-axis labels
+  fill(110);
+  textAlign(CENTER, TOP);
+  for (let h = 5; h <= MAX_H; h += 5) text(h, left + (h - 0.5) * barW, top + plotH + 6);
+  text("Hold when your turn total reaches…", left + plotW / 2, top + plotH + 24);
+
+  // Readout for the best or hovered strategy
+  const show = hovered ?? best;
+  const label = `Hold at ${show}: ${avg(show).toFixed(2)} points per turn` + (show === best ? " (best so far)" : "");
+  textAlign(RIGHT, TOP);
+  textSize(13);
+  fill(33);
+  text(label, width - right, 32);
+}
+</script>
+</body>
+</html>

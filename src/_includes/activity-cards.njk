@@ -1,0 +1,17 @@
+<h2 class="h4">Activities</h2>
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+  {% for a in collections.activity %}
+  <div class="col">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="h5 card-title"><a class="stretched-link text-decoration-none" href="{{ a.url }}">{{ a.data.title }}</a></h3>
+        <p class="card-text small">{{ a.data.summary }}</p>
+      </div>
+      <div class="card-footer small text-body-secondary d-flex justify-content-between">
+        <span>{{ a.data.duration }}</span>
+        <span>{{ a.data.materials | materialsCost | money }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>

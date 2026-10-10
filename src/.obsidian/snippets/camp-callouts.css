@@ -1,0 +1,5 @@
+/* Gives the camp's custom callouts their own colors and icons inside Obsidian. */
+.callout[data-callout="facilitation"] { --callout-color: 13, 202, 240; --callout-icon: lucide-compass; }
+.callout[data-callout="rules"]        { --callout-color: 13, 110, 253; --callout-icon: lucide-list-checks; }
+.callout[data-callout="figure"]       { --callout-color: 108, 117, 125; --callout-icon: lucide-image; }
+.callout[data-callout="safety"]       { --callout-color: 220, 53, 69;  --callout-icon: lucide-shield-alert; }
